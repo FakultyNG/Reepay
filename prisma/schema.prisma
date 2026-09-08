@@ -1,0 +1,398 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WalletCurrency {
+  XAF
+  EUR
+  USDC
+}
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+}
+
+enum DepositStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum TransactionType {
+  WALLET_FUNDING
+  WALLET_CONVERSION
+  WALLET_CONVERSION_REVERSAL
+  EUR_PAYOUT
+  USDC_PAYOUT
+  PAYOUT_REVERSAL
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  QUOTED
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum WalletConversionStatus {
+  QUOTED
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+}
+
+enum NotificationEventType {
+  DEPOSIT_COMPLETED
+  DEPOSIT_FAILED
+  WALLET_CONVERSION_PROCESSING
+  WALLET_CONVERSION_COMPLETED
+  WALLET_CONVERSION_FAILED
+  PAYOUT_PROCESSING
+  PAYOUT_COMPLETED
+  PAYOUT_FAILED
+  PAYOUT_REFUNDED
+}
+
+enum WebhookProcessingStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum OutboundWebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  DISABLED
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  externalId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  wallets             Wallet[]
+  deposits            Deposit[]
+  walletConversionQuotes WalletConversionQuote[]
+  walletConversions   WalletConversion[]
+  payoutQuotes        PayoutQuote[]
+  payouts             Payout[]
+  transactions        Transaction[]
+}
+
+model Wallet {
+  id         String         @id @default(uuid())
+  customerId String
+  currency   WalletCurrency
+  balance    Decimal        @default(0) @db.Decimal(19, 8)
+  status     WalletStatus   @default(ACTIVE)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  ledgerEntries LedgerEntry[]
+  deposits      Deposit[]
+  payouts       Payout[]
+  sourceConversions      WalletConversion[] @relation("WalletConversionSourceWallet")
+  destinationConversions WalletConversion[] @relation("WalletConversionDestinationWallet")
+
+  @@unique([customerId, currency])
+  @@index([currency])
+}
+
+model Deposit {
+  id                    String        @id @default(uuid())
+  customerId            String
+  walletId              String?
+  amount                Decimal       @db.Decimal(19, 8)
+  currency              WalletCurrency
+  network               String
+  phoneNumber           String
+  status                DepositStatus @default(PENDING)
+  merchantReference     String        @unique
+  provider              String
+  providerReference     String        @unique
+  providerTransactionId String?
+  checkoutUrl           String?
+  checkoutToken         String?
+  failureReason         String?
+  idempotencyKey        String?       @unique
+  providerRequestId     String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  completedAt           DateTime?
+
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  wallet       Wallet?       @relation(fields: [walletId], references: [id])
+  transaction  Transaction?
+  ledgerEntries LedgerEntry[]
+
+  @@index([customerId, status])
+  @@index([provider, providerReference])
+}
+
+model Transaction {
+  id                    String            @id @default(uuid())
+  customerId            String
+  depositId             String?           @unique
+  payoutId              String?
+  conversionId          String?
+  type                  TransactionType
+  status                TransactionStatus
+  amount                Decimal           @db.Decimal(19, 8)
+  currency              WalletCurrency
+  provider              String?
+  providerReference     String?
+  providerTransactionId String?
+  merchantReference     String?           @unique
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  deposit       Deposit?      @relation(fields: [depositId], references: [id])
+  payout        Payout?       @relation(fields: [payoutId], references: [id])
+  conversion    WalletConversion? @relation(fields: [conversionId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([customerId, createdAt])
+  @@index([payoutId])
+  @@index([conversionId])
+  @@index([provider, providerReference])
+}
+
+model LedgerEntry {
+  id            String          @id @default(uuid())
+  walletId      String
+  customerId    String
+  depositId     String?
+  conversionId  String?
+  transactionId String?
+  type          LedgerEntryType
+  amount        Decimal         @db.Decimal(19, 8)
+  currency      WalletCurrency
+  balanceAfter  Decimal         @db.Decimal(19, 8)
+  description   String?
+  createdAt     DateTime        @default(now())
+
+  wallet      Wallet       @relation(fields: [walletId], references: [id])
+  deposit     Deposit?     @relation(fields: [depositId], references: [id])
+  conversion  WalletConversion? @relation(fields: [conversionId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@index([customerId, createdAt])
+}
+
+model WalletConversionQuote {
+  id                     String         @id @default(uuid())
+  customerId             String
+  sourceCurrency         WalletCurrency
+  destinationCurrency    WalletCurrency
+  sourceAmount           Decimal        @db.Decimal(19, 8)
+  destinationAmount      Decimal        @db.Decimal(19, 8)
+  providerFee            Decimal        @db.Decimal(19, 8)
+  reepayFee              Decimal        @db.Decimal(19, 8)
+  totalDebit             Decimal        @db.Decimal(19, 8)
+  rate                   Decimal        @db.Decimal(19, 8)
+  provider               String
+  providerQuoteReference String?
+  providerQuoteExpiresAt DateTime
+  quotedAt               DateTime       @default(now())
+  expiresAt              DateTime
+  merchantReference      String         @unique
+  idempotencyKey         String?        @unique
+  confirmedAt            DateTime?
+  createdAt              DateTime       @default(now())
+
+  customer   Customer          @relation(fields: [customerId], references: [id])
+  conversion WalletConversion?
+
+  @@index([customerId, createdAt])
+  @@index([expiresAt])
+}
+
+model WalletConversion {
+  id                    String                 @id @default(uuid())
+  customerId            String
+  sourceWalletId        String
+  destinationWalletId   String?
+  quoteId               String                 @unique
+  sourceCurrency        WalletCurrency
+  destinationCurrency   WalletCurrency
+  sourceAmount          Decimal                @db.Decimal(19, 8)
+  destinationAmount     Decimal                @db.Decimal(19, 8)
+  providerFee           Decimal                @db.Decimal(19, 8)
+  reepayFee             Decimal                @db.Decimal(19, 8)
+  totalDebit            Decimal                @db.Decimal(19, 8)
+  status                WalletConversionStatus @default(PENDING)
+  provider              String
+  providerReference     String?                @unique
+  providerTransactionId String?
+  merchantReference     String                 @unique
+  idempotencyKey        String                 @unique
+  failureReason         String?
+  reversedAt            DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  completedAt           DateTime?
+
+  customer          Customer                @relation(fields: [customerId], references: [id])
+  sourceWallet      Wallet                  @relation("WalletConversionSourceWallet", fields: [sourceWalletId], references: [id])
+  destinationWallet Wallet?                 @relation("WalletConversionDestinationWallet", fields: [destinationWalletId], references: [id])
+  quote             WalletConversionQuote   @relation(fields: [quoteId], references: [id])
+  transactions      Transaction[]
+  ledgerEntries     LedgerEntry[]
+
+  @@index([customerId, status])
+  @@index([provider, providerReference])
+}
+
+model PayoutQuote {
+  id                String       @id @default(uuid())
+  customerId        String
+  sourceCurrency    WalletCurrency
+  destinationCurrency String
+  destinationAmount Decimal      @db.Decimal(19, 8)
+  sourceAmount      Decimal      @db.Decimal(19, 8)
+  providerFee       Decimal      @db.Decimal(19, 8)
+  reepayFee         Decimal      @db.Decimal(19, 8)
+  totalDebit        Decimal      @db.Decimal(19, 8)
+  rate              Decimal      @db.Decimal(19, 8)
+  providerQuoteExpiresAt DateTime
+  quotedAt          DateTime     @default(now())
+  expiresAt         DateTime
+  provider          String       @default("kryptapay")
+  destinationType   String       @default("iban")
+  recipientIban     String?
+  recipientName     String?
+  recipientBankName String?
+  recipientAddress  String?
+  recipientWiseTag  String?
+  merchantReference String       @unique
+  idempotencyKey    String?      @unique
+  confirmedAt       DateTime?
+  createdAt         DateTime     @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  payout   Payout?
+
+  @@index([customerId, createdAt])
+  @@index([expiresAt])
+}
+
+model Payout {
+  id                    String       @id @default(uuid())
+  customerId            String
+  walletId              String
+  quoteId               String       @unique
+  amount                Decimal      @db.Decimal(19, 8)
+  currency              String
+  sourceAmount          Decimal      @db.Decimal(19, 8)
+  providerFee           Decimal      @db.Decimal(19, 8)
+  reepayFee             Decimal      @db.Decimal(19, 8)
+  totalDebit            Decimal      @db.Decimal(19, 8)
+  status                PayoutStatus @default(PENDING)
+  merchantReference     String       @unique
+  idempotencyKey        String       @unique
+  provider              String
+  providerReference     String?      @unique
+  providerTransactionId String?
+  sourceCurrency        WalletCurrency @default(XAF)
+  destinationType       String       @default("iban")
+  recipientIban         String?
+  recipientName         String?
+  recipientBankName     String?
+  recipientAddress      String?
+  recipientWiseTag      String?
+  failureReason         String?
+  reversedAt            DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  completedAt           DateTime?
+
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  wallet       Wallet        @relation(fields: [walletId], references: [id])
+  quote        PayoutQuote   @relation(fields: [quoteId], references: [id])
+  transactions Transaction[]
+
+  @@index([customerId, status])
+  @@index([provider, providerReference])
+}
+
+model WebhookLog {
+  id                String                  @id @default(uuid())
+  provider          String
+  eventId           String
+  eventType         String
+  receivedAt        DateTime                @default(now())
+  signatureValid    Boolean
+  rawPayload        String                  @db.Text
+  processingStatus  WebhookProcessingStatus @default(PENDING)
+  providerReference String?
+  providerRequestId String?
+  errorMessage      String?
+  processedAt       DateTime?
+
+  @@unique([provider, eventId])
+  @@index([provider, eventType])
+  @@index([processingStatus, receivedAt])
+}
+
+model OutboundWebhookDelivery {
+  id             String                        @id @default(uuid())
+  eventId        String                        @unique
+  eventType      String
+  endpointUrl    String
+  payload        Json
+  signature      String
+  status         OutboundWebhookDeliveryStatus @default(PENDING)
+  attempts       Int                           @default(0)
+  lastStatusCode Int?
+  lastError      String?
+  createdAt      DateTime                      @default(now())
+  deliveredAt    DateTime?
+
+  @@index([status, createdAt])
+  @@index([eventType])
+}
+
+model NotificationEvent {
+  id            String                @id @default(uuid())
+  customerId    String
+  type          NotificationEventType
+  payload       Json
+  createdAt     DateTime              @default(now())
+  dispatchedAt  DateTime?
+
+  @@index([customerId, createdAt])
+}

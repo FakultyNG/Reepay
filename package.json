@@ -1,0 +1,51 @@
+{
+  "name": "reepay-api",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.19.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "lint": "eslint src test",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nestjs/axios": "^4.0.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/throttler": "^6.4.0",
+    "@prisma/client": "^6.0.0",
+    "axios": "^1.7.9",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.17.0",
+    "prisma": "^6.0.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^2.1.8"
+  }
+}

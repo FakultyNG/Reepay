@@ -1,0 +1,82 @@
+services:
+  - type: web
+    name: reepay-api
+    runtime: node
+    buildCommand: corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: REEPAY_PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REEPAY_API_KEY
+        sync: false
+      - key: REEPAY_ALLOWED_APPLICATION_IDS
+        value: sangapay-backend
+      - key: REEPAY_ENV
+        value: sandbox
+      - key: REEPAY_FEE_TYPE
+        value: fixed
+      - key: REEPAY_FEE_FIXED
+        sync: false
+      - key: REEPAY_FEE_PERCENT
+        sync: false
+      - key: REEPAY_FEE_PERCENT_CAP
+        sync: false
+      - key: REEPAY_FEE_CURRENCY
+        value: XAF
+      - key: REEPAY_EUR_PAYOUT_FEE_FIXED
+        value: 0
+      - key: REEPAY_EUR_PAYOUT_FEE_PERCENT
+        value: 0
+      - key: REEPAY_EUR_PAYOUT_FEE_PERCENT_CAP
+        value: 10
+      - key: REEPAY_USDC_PAYOUT_FEE_FIXED
+        value: 0
+      - key: REEPAY_USDC_PAYOUT_FEE_PERCENT
+        value: 0
+      - key: REEPAY_USDC_PAYOUT_FEE_PERCENT_CAP
+        sync: false
+      - key: REEPAY_RECONCILIATION_ENABLED
+        value: true
+      - key: REEPAY_RECONCILIATION_INTERVAL_MS
+        value: 300000
+      - key: REEPAY_RECONCILIATION_LOOKBACK_MINUTES
+        value: 1440
+      - key: REEPAY_RECONCILIATION_BATCH_SIZE
+        value: 25
+      - key: SANGAPAY_WEBHOOK_ENABLED
+        value: false
+      - key: SANGAPAY_WEBHOOK_URL
+        sync: false
+      - key: SANGAPAY_WEBHOOK_SECRET
+        sync: false
+      - key: SANGAPAY_WEBHOOK_MAX_ATTEMPTS
+        value: 3
+      - key: SANGAPAY_WEBHOOK_RETRY_BASE_DELAY_MS
+        value: 500
+      - key: KRYPTAPAY_BASE_URL
+        sync: false
+      - key: KRYPTAPAY_API_KEY
+        sync: false
+      - key: KRYPTAPAY_WEBHOOK_SECRET
+        sync: false
+      - key: WISE_BASE_URL
+        value: https://api.wise.com
+      - key: WISE_API_TOKEN
+        sync: false
+      - key: WISE_PROFILE_ID
+        sync: false
+      - key: WISE_EUR_BALANCE_ID
+        sync: false
+      - key: WISE_WEBHOOK_PUBLIC_KEY
+        sync: false
+      - key: WISE_EUR_FUNDING_IBAN
+        sync: false
+      - key: WISE_EUR_FUNDING_ACCOUNT_NAME
+        sync: false
+      - key: WISE_EUR_FUNDING_BANK_NAME
+        sync: false
