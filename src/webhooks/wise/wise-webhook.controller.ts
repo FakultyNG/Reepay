@@ -12,7 +12,7 @@ type RawBodyRequest = Request & {
 export class WiseWebhookController {
   constructor(@Inject(WiseWebhookService) private readonly webhooks: WiseWebhookService) {}
 
-  @Post()
+  @Post(["", "transfers", "account-deposits", "transfer-issues"])
   @HttpCode(202)
   handleWebhook(
     @Req() req: RawBodyRequest,

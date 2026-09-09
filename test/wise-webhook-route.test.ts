@@ -24,7 +24,12 @@ describe("Wise webhook route", () => {
     vi.clearAllMocks();
   });
 
-  it("accepts provider webhooks only on POST /api/v1/webhooks/wise", async () => {
+  it.each([
+    "/api/v1/webhooks/wise",
+    "/api/v1/webhooks/wise/transfers",
+    "/api/v1/webhooks/wise/account-deposits",
+    "/api/v1/webhooks/wise/transfer-issues"
+  ])("accepts provider webhooks on POST %s", async (path) => {
     const rawPayload = JSON.stringify({
       data: {
         resource: {
@@ -39,7 +44,7 @@ describe("Wise webhook route", () => {
     });
 
     const response = await request(app.getHttpServer())
-      .post("/api/v1/webhooks/wise")
+      .post(path)
       .set("Content-Type", "application/json")
       .set("X-Signature-SHA256", "signature_123")
       .set("X-Delivery-Id", "delivery_123")
