@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DepositsService } from "../src/deposits/deposits.service";
 import { KryptaPayWebhookService } from "../src/webhooks/kryptapay/kryptapay-webhook.service";
 import type { AppConfigService } from "../src/config/app-config.service";
+import type { FeeService } from "../src/common/fees/fee.service";
 import type { PrismaService } from "../src/database/prisma.service";
 import type { KryptaPayClient } from "../src/providers/kryptapay";
 import type { KryptaPayWebhookPayload } from "../src/webhooks/kryptapay/kryptapay-webhook.types";
@@ -15,11 +16,21 @@ function sangapayWebhooks() {
   } as unknown as SangaPayWebhookDispatcher;
 }
 
+function feeService(amount = "150") {
+  return {
+    calculateCustomerFeeDecimal: vi.fn().mockReturnValue(new Prisma.Decimal(amount))
+  } as unknown as FeeService;
+}
+
 describe("XAF wallet funding", () => {
   it("creates a KryptaPay checkout and records an internal pending XAF deposit", async () => {
     const depositCreate = vi.fn().mockResolvedValue({
       id: "dep_123",
       amount: new Prisma.Decimal("10000"),
+      creditedAmount: new Prisma.Decimal("10000"),
+      providerFee: new Prisma.Decimal("0"),
+      reepayFee: new Prisma.Decimal("150"),
+      totalDebit: new Prisma.Decimal("10150"),
       currency: WalletCurrency.XAF,
       status: DepositStatus.PENDING,
       network: "MTN_CM",
@@ -44,7 +55,7 @@ describe("XAF wallet funding", () => {
       createPayinCheckout: vi.fn().mockResolvedValue({
         reference: "tx_123",
         status: "pending",
-        amount: "10000",
+        amount: "10150",
         currency: "XAF",
         checkoutUrl: "https://checkout.example",
         checkoutToken: "sbx_123",
@@ -58,7 +69,8 @@ describe("XAF wallet funding", () => {
       })
     } as unknown as KryptaPayClient;
 
-    const service = new DepositsService(prisma, kryptaPay, sangapayWebhooks());
+    const fees = feeService();
+    const service = new DepositsService(prisma, kryptaPay, fees, sangapayWebhooks());
 
     const result = await service.createXafDeposit(
       {
@@ -74,7 +86,7 @@ describe("XAF wallet funding", () => {
 
     expect(kryptaPay.createPayinCheckout).toHaveBeenCalledWith(
       expect.objectContaining({
-        amount: "10000",
+        amount: "10150",
         currency: "XAF",
         network: "MTN_CM",
         customer: expect.objectContaining({ msisdn: "237670000000" })
@@ -88,6 +100,10 @@ describe("XAF wallet funding", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           amount: expect.any(Prisma.Decimal),
+          creditedAmount: expect.any(Prisma.Decimal),
+          providerFee: expect.any(Prisma.Decimal),
+          reepayFee: expect.any(Prisma.Decimal),
+          totalDebit: expect.any(Prisma.Decimal),
           currency: WalletCurrency.XAF,
           status: DepositStatus.PENDING,
           provider: "kryptapay",
@@ -97,6 +113,9 @@ describe("XAF wallet funding", () => {
       })
     );
     expect(result.status).toBe("pending");
+    expect(result.amount).toBe("10000");
+    expect(result.fees.reepay.amount).toBe("150");
+    expect(result.totalDebit.amount).toBe("10150");
   });
 
   it("credits the Reepay ledger after a signed PAYIN_RECEIVED webhook and provider status verification", async () => {
@@ -107,7 +126,7 @@ describe("XAF wallet funding", () => {
       data: {
         transaction_id: "tx_123",
         reference: "tx_123",
-        amount: "10000",
+        amount: "10150",
         currency: "XAF",
         network: "MTN_CM",
         status: "COMPLETED",
@@ -123,6 +142,10 @@ describe("XAF wallet funding", () => {
           id: "dep_123",
           customerId: "customer_123",
           amount: new Prisma.Decimal("10000"),
+          creditedAmount: new Prisma.Decimal("10000"),
+          providerFee: new Prisma.Decimal("0"),
+          reepayFee: new Prisma.Decimal("150"),
+          totalDebit: new Prisma.Decimal("10150"),
           currency: WalletCurrency.XAF,
           status: DepositStatus.PENDING,
           providerReference: "tx_123",
@@ -162,7 +185,7 @@ describe("XAF wallet funding", () => {
       getPayinStatus: vi.fn().mockResolvedValue({
         reference: "tx_123",
         status: "completed",
-        amount: "10000",
+        amount: "10150",
         currency: "XAF",
         trace: {
           provider: "kryptapay",

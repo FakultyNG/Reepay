@@ -9,6 +9,7 @@ import {
   WalletCurrency
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
+import { FeeService } from "../common/fees/fee.service";
 import { parseMoneyDecimal } from "../common/money/decimal";
 import { PrismaService } from "../database/prisma.service";
 import { KryptaPayClient } from "../providers/kryptapay";
@@ -20,11 +21,16 @@ export class DepositsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(KryptaPayClient) private readonly kryptaPay: KryptaPayClient,
+    @Inject(FeeService) private readonly feeService: FeeService,
     @Inject(SangaPayWebhookDispatcher) private readonly sangapayWebhooks: SangaPayWebhookDispatcher
   ) {}
 
   async createXafDeposit(dto: CreateXafDepositDto, requestId?: string, idempotencyKey?: string) {
     const amount = parseMoneyDecimal(dto.amount);
+    const creditedAmount = amount;
+    const providerFee = new Prisma.Decimal(0);
+    const reepayFee = this.feeService.calculateCustomerFeeDecimal(amount);
+    const totalDebit = creditedAmount.add(providerFee).add(reepayFee).toDecimalPlaces(4);
     const merchantReference = `rp_dep_${Date.now().toString(36)}_${randomUUID().replaceAll("-", "").slice(0, 16)}`;
     const effectiveIdempotencyKey = idempotencyKey ?? randomUUID();
 
@@ -38,7 +44,7 @@ export class DepositsService {
 
     const payin = await this.kryptaPay.createPayinCheckout(
       {
-        amount: amount.toFixed(),
+        amount: totalDebit.toFixed(),
         currency: "XAF",
         network: dto.network,
         customer: {
@@ -66,6 +72,10 @@ export class DepositsService {
             }
           },
           amount,
+          creditedAmount,
+          providerFee,
+          reepayFee,
+          totalDebit,
           currency: WalletCurrency.XAF,
           network: dto.network,
           phoneNumber: dto.phoneNumber,
@@ -119,7 +129,9 @@ export class DepositsService {
         verified: true,
         status: providerStatus.status,
         amount: providerStatus.amount,
-        currency: providerStatus.currency
+        currency: providerStatus.currency,
+        expectedAmount: deposit.totalDebit.toFixed(),
+        expectedCurrency: deposit.currency
       }
     };
   }
@@ -147,7 +159,7 @@ export class DepositsService {
 
     if (providerStatus.status === "completed") {
       const providerAmount = parseMoneyDecimal(providerStatus.amount);
-      if (!deposit.amount.equals(providerAmount) || deposit.currency !== WalletCurrency.XAF || providerStatus.currency !== "XAF") {
+      if (!deposit.totalDebit.equals(providerAmount) || deposit.currency !== WalletCurrency.XAF || providerStatus.currency !== "XAF") {
         throw new BadRequestException("Provider deposit status does not match internal deposit");
       }
 
@@ -278,6 +290,10 @@ export class DepositsService {
   toDepositResponse(deposit: {
     id: string;
     amount: Prisma.Decimal;
+    creditedAmount?: Prisma.Decimal;
+    providerFee?: Prisma.Decimal;
+    reepayFee?: Prisma.Decimal;
+    totalDebit?: Prisma.Decimal;
     currency: WalletCurrency;
     status: string;
     network: string;
@@ -292,10 +308,27 @@ export class DepositsService {
     updatedAt: Date;
     completedAt: Date | null;
   }) {
+    const creditedAmount = deposit.creditedAmount ?? deposit.amount;
+    const providerFee = deposit.providerFee ?? new Prisma.Decimal(0);
+    const reepayFee = deposit.reepayFee ?? new Prisma.Decimal(0);
+    const totalDebit = deposit.totalDebit ?? deposit.amount;
+
     return {
       id: deposit.id,
-      amount: deposit.amount.toFixed(),
+      amount: creditedAmount.toFixed(),
       currency: deposit.currency,
+      creditedAmount: {
+        amount: creditedAmount.toFixed(),
+        currency: deposit.currency
+      },
+      fees: {
+        provider: { amount: providerFee.toFixed(), currency: deposit.currency },
+        reepay: { amount: reepayFee.toFixed(), currency: deposit.currency }
+      },
+      totalDebit: {
+        amount: totalDebit.toFixed(),
+        currency: deposit.currency
+      },
       status: deposit.status.toLowerCase(),
       network: deposit.network,
       phoneNumber: deposit.phoneNumber,

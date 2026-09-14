@@ -135,6 +135,10 @@ model Deposit {
   customerId            String
   walletId              String?
   amount                Decimal       @db.Decimal(19, 8)
+  creditedAmount        Decimal       @db.Decimal(19, 8)
+  providerFee           Decimal       @db.Decimal(19, 8)
+  reepayFee             Decimal       @db.Decimal(19, 8)
+  totalDebit            Decimal       @db.Decimal(19, 8)
   currency              WalletCurrency
   network               String
   phoneNumber           String

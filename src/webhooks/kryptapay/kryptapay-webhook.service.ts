@@ -264,7 +264,7 @@ export class KryptaPayWebhookService {
         throw new NotFoundException("Pending deposit not found for provider reference");
       }
 
-      if (!deposit.amount.equals(verifiedAmount) || deposit.currency !== WalletCurrency.XAF) {
+      if (!deposit.totalDebit.equals(verifiedAmount) || deposit.currency !== WalletCurrency.XAF) {
         throw new BadRequestException("Verified provider transaction does not match pending deposit");
       }
 
