@@ -63,6 +63,8 @@ export class DepositsService {
     );
 
     try {
+      const expiresInSec = payin.expiresInSec ?? dto.expiresInSec;
+      const expiresAt = parseOptionalDate(payin.expiresAt) ?? resolveExpiresAt(expiresInSec);
       const deposit = await this.prisma.deposit.create({
         data: {
           customer: {
@@ -86,6 +88,8 @@ export class DepositsService {
           idempotencyKey: effectiveIdempotencyKey,
           ...(payin.checkoutUrl ? { checkoutUrl: payin.checkoutUrl } : {}),
           ...(payin.checkoutToken ? { checkoutToken: payin.checkoutToken } : {}),
+          ...(expiresInSec ? { expiresInSec } : {}),
+          ...(expiresAt ? { expiresAt } : {}),
           ...(payin.trace.providerTransactionId ? { providerTransactionId: payin.trace.providerTransactionId } : {}),
           ...(payin.trace.providerRequestId ? { providerRequestId: payin.trace.providerRequestId } : {})
         }
@@ -122,9 +126,22 @@ export class DepositsService {
       requestId,
       merchantReference: deposit.merchantReference
     });
+    const providerStatusChanged =
+      providerStatus.status === "completed" ||
+      providerStatus.status === "failed" ||
+      providerStatus.status === "cancelled" ||
+      providerStatus.status === "refunded";
+    if (providerStatusChanged) {
+      await this.reconcileProviderDepositStatus(id, requestId);
+    }
+
+    const current = await this.prisma.deposit.findUnique({ where: { id } });
+    if (!current) {
+      throw new NotFoundException("Deposit not found");
+    }
 
     return {
-      ...this.toDepositResponse(deposit),
+      ...this.toDepositResponse(current),
       verification: {
         verified: true,
         status: providerStatus.status,
@@ -303,6 +320,8 @@ export class DepositsService {
     providerTransactionId: string | null;
     checkoutUrl: string | null;
     checkoutToken: string | null;
+    expiresInSec?: number | null;
+    expiresAt?: Date | null;
     failureReason: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -335,6 +354,8 @@ export class DepositsService {
       reference: deposit.merchantReference,
       checkoutUrl: deposit.checkoutUrl ?? undefined,
       checkoutToken: deposit.checkoutToken ?? undefined,
+      expiresInSec: deposit.expiresInSec ?? undefined,
+      expiresAt: deposit.expiresAt?.toISOString(),
       failureReason: deposit.failureReason ?? undefined,
       createdAt: deposit.createdAt.toISOString(),
       updatedAt: deposit.updatedAt.toISOString(),
@@ -356,4 +377,17 @@ function mapFailedDepositStatus(status: string) {
     default:
       return DepositStatus.FAILED;
   }
+}
+
+function parseOptionalDate(value?: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function resolveExpiresAt(expiresInSec?: number) {
+  return expiresInSec ? new Date(Date.now() + expiresInSec * 1000) : undefined;
 }

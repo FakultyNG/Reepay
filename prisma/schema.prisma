@@ -149,6 +149,8 @@ model Deposit {
   providerTransactionId String?
   checkoutUrl           String?
   checkoutToken         String?
+  expiresInSec          Int?
+  expiresAt             DateTime?
   failureReason         String?
   idempotencyKey        String?       @unique
   providerRequestId     String?

@@ -40,6 +40,8 @@ describe("XAF wallet funding", () => {
       providerTransactionId: "tx_123",
       checkoutUrl: "https://checkout.example",
       checkoutToken: "sbx_123",
+      expiresInSec: 900,
+      expiresAt: new Date("2026-08-27T00:15:00.000Z"),
       failureReason: null,
       createdAt: new Date("2026-08-27T00:00:00.000Z"),
       updatedAt: new Date("2026-08-27T00:00:00.000Z"),
@@ -59,6 +61,8 @@ describe("XAF wallet funding", () => {
         currency: "XAF",
         checkoutUrl: "https://checkout.example",
         checkoutToken: "sbx_123",
+        expiresInSec: 900,
+        expiresAt: "2026-08-27T00:15:00.000Z",
         trace: {
           provider: "kryptapay",
           providerRequestId: "kp_req_123",
@@ -78,7 +82,8 @@ describe("XAF wallet funding", () => {
         amount: "10000",
         network: "MTN_CM",
         phoneNumber: "237670000000",
-        fullName: "Jane Doe"
+        fullName: "Jane Doe",
+        expiresInSec: 900
       },
       "req_123",
       "idem_123"
@@ -116,6 +121,78 @@ describe("XAF wallet funding", () => {
     expect(result.amount).toBe("10000");
     expect(result.fees.reepay.amount).toBe("150");
     expect(result.totalDebit.amount).toBe("10150");
+    expect(result.expiresInSec).toBe(900);
+    expect(result.expiresAt).toBe("2026-08-27T00:15:00.000Z");
+  });
+
+  it("reconciles and returns the refreshed deposit when manual verification sees a completed payin", async () => {
+    const pendingDeposit = {
+      id: "dep_123",
+      amount: new Prisma.Decimal("10000"),
+      creditedAmount: new Prisma.Decimal("10000"),
+      providerFee: new Prisma.Decimal("0"),
+      reepayFee: new Prisma.Decimal("150"),
+      totalDebit: new Prisma.Decimal("10150"),
+      currency: WalletCurrency.XAF,
+      status: DepositStatus.PENDING,
+      network: "MTN_CM",
+      phoneNumber: "237670000000",
+      merchantReference: "rp_dep_test",
+      providerReference: "tx_123",
+      providerTransactionId: "tx_123",
+      checkoutUrl: "https://checkout.example",
+      checkoutToken: "sbx_123",
+      expiresInSec: 900,
+      expiresAt: new Date("2026-08-27T00:15:00.000Z"),
+      failureReason: null,
+      createdAt: new Date("2026-08-27T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-27T00:00:00.000Z"),
+      completedAt: null
+    };
+    const completedDeposit = {
+      ...pendingDeposit,
+      status: DepositStatus.COMPLETED,
+      completedAt: new Date("2026-08-27T00:02:00.000Z")
+    };
+    const prisma = {
+      deposit: {
+        findUnique: vi.fn()
+          .mockResolvedValueOnce(pendingDeposit)
+          .mockResolvedValueOnce(completedDeposit)
+      }
+    } as unknown as PrismaService;
+    const kryptaPay = {
+      getPayinStatus: vi.fn().mockResolvedValue({
+        reference: "tx_123",
+        status: "completed",
+        amount: "10150",
+        currency: "XAF",
+        trace: {
+          provider: "kryptapay",
+          providerTransactionId: "tx_123",
+          providerReference: "tx_123",
+          merchantReference: "rp_dep_test"
+        }
+      })
+    } as unknown as KryptaPayClient;
+    const service = new DepositsService(prisma, kryptaPay, feeService(), sangapayWebhooks());
+    const reconcile = vi.spyOn(service, "reconcileProviderDepositStatus").mockResolvedValue({
+      reconciled: true,
+      status: "completed"
+    });
+
+    const result = await service.verifyDeposit("dep_123", "req_123");
+
+    expect(reconcile).toHaveBeenCalledWith("dep_123", "req_123");
+    expect(result.status).toBe("completed");
+    expect(result.amount).toBe("10000");
+    expect(result.totalDebit.amount).toBe("10150");
+    expect(result.verification).toMatchObject({
+      verified: true,
+      status: "completed",
+      amount: "10150",
+      expectedAmount: "10150"
+    });
   });
 
   it("credits the Reepay ledger after a signed PAYIN_RECEIVED webhook and provider status verification", async () => {
