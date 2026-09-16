@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-const feeTypeSchema = z.enum(["fixed", "percentage"]);
+const feeTypeSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim().toLowerCase() : value),
+  z.enum(["fixed", "percentage"])
+);
 const reepayEnvSchema = z.preprocess(
   (value) => (typeof value === "string" ? value.toLowerCase() : value),
   z.enum(["sandbox", "production", "test", "development"])

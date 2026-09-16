@@ -62,6 +62,23 @@ describe("FeeService", () => {
     restore();
   });
 
+  it("normalizes percentage fee type casing from environment", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: " Percentage ",
+      REEPAY_FEE_FIXED: "150",
+      REEPAY_FEE_PERCENT: "2.5"
+    });
+
+    expect(service.calculateCustomerFee(10_000)).toEqual({
+      transactionAmount: 10_000,
+      customerFee: 250,
+      currency: "XAF",
+      feeType: "percentage"
+    });
+
+    restore();
+  });
+
   it("caps percentage customer fees from environment", () => {
     const { service, restore } = buildFeeService({
       REEPAY_FEE_TYPE: "percentage",
