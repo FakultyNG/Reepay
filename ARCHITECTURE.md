@@ -162,7 +162,7 @@ REEPAY_USDC_PAYOUT_FEE_PERCENT
 REEPAY_USDC_PAYOUT_FEE_PERCENT_CAP
 ```
 
-Reepay fee behavior is controlled by Reepay-owned fee variables only. Provider fees are not configured by Reepay environment variables; they come from KryptaPay or Wise quote/transaction responses when those providers expose them in the relevant flow. If a provider does not expose a separate pre-confirm fee quote for a flow, Reepay returns a zero provider fee at quote time rather than inventing one.
+Reepay fee behavior is controlled by Reepay-owned fee variables only. Provider fees come from KryptaPay or Wise responses when available. XAF deposits temporarily use `KRYPTAPAY_DEPOSIT_FEE_PERCENT` when `KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED=true`; Reepay calculates this fallback on the wallet credit plus Reepay fee, rounds it up to whole XAF, and adds it to the checkout amount. A future provider-quoted fee takes precedence, after which the fallback can be disabled.
 
 ## Wallets And Conversions
 

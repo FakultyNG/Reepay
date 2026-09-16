@@ -85,3 +85,9 @@ Percentage caps are configurable:
 - `REEPAY_FEE_PERCENT_CAP` caps the global XAF fee percentage.
 - `REEPAY_EUR_PAYOUT_FEE_PERCENT_CAP` caps EUR wallet payout percentage fees and defaults to `10`.
 - `REEPAY_USDC_PAYOUT_FEE_PERCENT_CAP` caps USDC wallet payout percentage fees when set.
+
+KryptaPay deposit fees use `KRYPTAPAY_DEPOSIT_FEE_PERCENT` as a temporary fallback when
+`KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED=true`. Reepay calculates the percentage on the wallet credit
+plus Reepay fee, rounds it up to a whole XAF, and adds it to the checkout amount.
+When KryptaPay exposes a fee value, that provider value takes precedence; disable the fallback by
+setting `KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED=false`.

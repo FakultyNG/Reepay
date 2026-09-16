@@ -20,6 +20,16 @@ const optionalPositiveIntSchema = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
   z.coerce.number().int().positive().optional()
 );
+const booleanSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return value;
+}, z.boolean());
 
 export const envSchema = z
   .object({
@@ -44,6 +54,8 @@ export const envSchema = z
     KRYPTAPAY_BASE_URL: z.string().url(),
     KRYPTAPAY_API_KEY: z.string().min(1),
     KRYPTAPAY_WEBHOOK_SECRET: z.string().min(1),
+    KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED: booleanSchema.default(false),
+    KRYPTAPAY_DEPOSIT_FEE_PERCENT: z.coerce.number().nonnegative().lt(100).default(2.5),
     WISE_BASE_URL: z.string().url().default("https://api.wise.com"),
     WISE_API_TOKEN: optionalSecretSchema,
     WISE_PROFILE_ID: optionalPositiveIntSchema,

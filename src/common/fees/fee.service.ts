@@ -49,6 +49,31 @@ export class FeeService {
     ).toDecimalPlaces(4);
   }
 
+  calculateDepositProviderFeeDecimal(
+    netSettlementRequired: Prisma.Decimal,
+    providerQuotedFee?: Prisma.Decimal
+  ): Prisma.Decimal {
+    if (netSettlementRequired.isNegative()) {
+      throw new Error("netSettlementRequired must be a non-negative decimal");
+    }
+
+    if (providerQuotedFee !== undefined) {
+      if (providerQuotedFee.isNegative()) {
+        throw new Error("providerQuotedFee must be a non-negative decimal");
+      }
+
+      return providerQuotedFee.ceil();
+    }
+
+    const fallback = this.config.kryptapay;
+    if (!fallback.depositFeeFallbackEnabled || fallback.depositFeePercent === 0) {
+      return new Prisma.Decimal(0);
+    }
+
+    const percent = new Prisma.Decimal(fallback.depositFeePercent);
+    return netSettlementRequired.mul(percent).div(100).ceil();
+  }
+
   calculateCurrencyFeeDecimal(
     transactionAmount: Prisma.Decimal,
     currency: "EUR" | "USDC"

@@ -64,7 +64,9 @@ export class AppConfigService {
     return {
       baseUrl: this.env.KRYPTAPAY_BASE_URL,
       apiKey: this.env.KRYPTAPAY_API_KEY,
-      webhookSecret: this.env.KRYPTAPAY_WEBHOOK_SECRET
+      webhookSecret: this.env.KRYPTAPAY_WEBHOOK_SECRET,
+      depositFeeFallbackEnabled: this.env.KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED,
+      depositFeePercent: this.env.KRYPTAPAY_DEPOSIT_FEE_PERCENT
     };
   }
 

@@ -16,9 +16,10 @@ function sangapayWebhooks() {
   } as unknown as SangaPayWebhookDispatcher;
 }
 
-function feeService(amount = "150") {
+function feeService(amount = "150", providerFee = "0") {
   return {
-    calculateCustomerFeeDecimal: vi.fn().mockReturnValue(new Prisma.Decimal(amount))
+    calculateCustomerFeeDecimal: vi.fn().mockReturnValue(new Prisma.Decimal(amount)),
+    calculateDepositProviderFeeDecimal: vi.fn().mockReturnValue(new Prisma.Decimal(providerFee))
   } as unknown as FeeService;
 }
 
@@ -46,6 +47,26 @@ describe("XAF wallet funding", () => {
     expect(result.totalDebit.amount).toBe("10150");
     expect(result.network).toBe("MTN_CM");
     expect(result.phoneNumber).toBe("237670000000");
+  });
+
+  it("adds the rounded provider fee fallback to the XAF checkout total", () => {
+    const service = new DepositsService(
+      {} as PrismaService,
+      { createPayinCheckout: vi.fn() } as unknown as KryptaPayClient,
+      feeService("50", "9"),
+      sangapayWebhooks()
+    );
+
+    const result = service.createXafDepositQuote({
+      amount: "302",
+      network: "MTN_CM",
+      phoneNumber: "237670000000"
+    });
+
+    expect(result.fees.provider.amount).toBe("9");
+    expect(result.fees.reepay.amount).toBe("50");
+    expect(result.totalFee.amount).toBe("59");
+    expect(result.totalDebit.amount).toBe("361");
   });
 
   it("creates a KryptaPay checkout and records an internal pending XAF deposit", async () => {
@@ -297,9 +318,9 @@ describe("XAF wallet funding", () => {
           customerId: "customer_123",
           amount: new Prisma.Decimal("10000"),
           creditedAmount: new Prisma.Decimal("10000"),
-          providerFee: new Prisma.Decimal("0"),
+          providerFee: new Prisma.Decimal("254"),
           reepayFee: new Prisma.Decimal("150"),
-          totalDebit: new Prisma.Decimal("10150"),
+          totalDebit: new Prisma.Decimal("10404"),
           currency: WalletCurrency.XAF,
           status: DepositStatus.PENDING,
           providerReference: "tx_123",

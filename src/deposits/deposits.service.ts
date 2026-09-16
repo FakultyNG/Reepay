@@ -182,7 +182,7 @@ export class DepositsService {
         status: providerStatus.status,
         amount: providerStatus.amount,
         currency: providerStatus.currency,
-        expectedAmount: deposit.totalDebit.toFixed(),
+        expectedAmount: deposit.totalDebit.sub(deposit.providerFee).toFixed(),
         expectedCurrency: deposit.currency
       }
     };
@@ -211,7 +211,8 @@ export class DepositsService {
 
     if (providerStatus.status === "completed") {
       const providerAmount = parseMoneyDecimal(providerStatus.amount);
-      if (!deposit.totalDebit.equals(providerAmount) || deposit.currency !== WalletCurrency.XAF || !isXafCurrency(providerStatus.currency)) {
+      const expectedProviderSettlement = deposit.totalDebit.sub(deposit.providerFee);
+      if (!expectedProviderSettlement.equals(providerAmount) || deposit.currency !== WalletCurrency.XAF || !isXafCurrency(providerStatus.currency)) {
         throw new BadRequestException("Provider deposit status does not match internal deposit");
       }
 
@@ -428,8 +429,8 @@ export class DepositsService {
   private calculateXafDepositPricing(amountValue: string) {
     const amount = parseMoneyDecimal(amountValue);
     const creditedAmount = amount;
-    const providerFee = new Prisma.Decimal(0);
     const reepayFee = this.feeService.calculateCustomerFeeDecimal(amount);
+    const providerFee = this.feeService.calculateDepositProviderFeeDecimal(creditedAmount.add(reepayFee));
     const totalDebit = creditedAmount.add(providerFee).add(reepayFee).toDecimalPlaces(4);
 
     return { amount, creditedAmount, providerFee, reepayFee, totalDebit };

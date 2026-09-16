@@ -108,4 +108,42 @@ describe("FeeService", () => {
 
     restore();
   });
+
+  it("calculates and rounds the fallback KryptaPay deposit fee to whole XAF", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "fixed",
+      KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED: "true",
+      KRYPTAPAY_DEPOSIT_FEE_PERCENT: "2.5"
+    });
+
+    expect(service.calculateDepositProviderFeeDecimal(new Prisma.Decimal("352")).toFixed()).toBe("9");
+
+    restore();
+  });
+
+  it("disables the KryptaPay deposit fee fallback from environment", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "fixed",
+      KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED: "false",
+      KRYPTAPAY_DEPOSIT_FEE_PERCENT: "2.5"
+    });
+
+    expect(service.calculateDepositProviderFeeDecimal(new Prisma.Decimal("352")).toFixed()).toBe("0");
+
+    restore();
+  });
+
+  it("prefers a provider-quoted deposit fee over the environment fallback", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "fixed",
+      KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED: "true",
+      KRYPTAPAY_DEPOSIT_FEE_PERCENT: "2.5"
+    });
+
+    expect(
+      service.calculateDepositProviderFeeDecimal(new Prisma.Decimal("352"), new Prisma.Decimal("7.1")).toFixed()
+    ).toBe("8");
+
+    restore();
+  });
 });
