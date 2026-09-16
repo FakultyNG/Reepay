@@ -260,14 +260,26 @@ export function createMerchantReference(prefix: string) {
 
 export function mapTransactionStatus(status: string): ProviderTransactionStatus {
   switch (status.trim().toUpperCase()) {
+    case "PAYIN_CREATED":
+    case "PAYOUT_CREATED":
     case "PENDING":
       return "pending";
     case "PROCESSING":
       return "processing";
+    case "PAYIN_RECEIVED":
+    case "PAYOUT_COMPLETED":
+    case "CONVERSION_COMPLETED":
+    case "RECEIVED":
+    case "SETTLED":
+    case "SUCCESS":
+    case "SUCCEEDED":
     case "COMPLETED":
       return "completed";
+    case "PAYIN_FAILED":
+    case "PAYOUT_FAILED":
     case "FAILED":
       return "failed";
+    case "EXPIRED":
     case "CANCELLED":
       return "cancelled";
     case "REFUNDED":
