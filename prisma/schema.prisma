@@ -95,6 +95,21 @@ enum OutboundWebhookDeliveryStatus {
   DISABLED
 }
 
+enum ReepayAdminRole {
+  OWNER
+}
+
+enum ReepayFeeSourceType {
+  DEPOSIT
+  WALLET_CONVERSION
+  PAYOUT
+}
+
+enum ReepayFeeEarningStatus {
+  REALIZED
+  REVERSED
+}
+
 model Customer {
   id         String   @id @default(uuid())
   externalId String   @unique
@@ -162,6 +177,7 @@ model Deposit {
   wallet       Wallet?       @relation(fields: [walletId], references: [id])
   transaction  Transaction?
   ledgerEntries LedgerEntry[]
+  feeEarning   ReepayFeeEarning?
 
   @@index([customerId, status])
   @@index([provider, providerReference])
@@ -278,6 +294,7 @@ model WalletConversion {
   quote             WalletConversionQuote   @relation(fields: [quoteId], references: [id])
   transactions      Transaction[]
   ledgerEntries     LedgerEntry[]
+  feeEarning        ReepayFeeEarning?
 
   @@index([customerId, status])
   @@index([provider, providerReference])
@@ -350,9 +367,43 @@ model Payout {
   wallet       Wallet        @relation(fields: [walletId], references: [id])
   quote        PayoutQuote   @relation(fields: [quoteId], references: [id])
   transactions Transaction[]
+  feeEarning   ReepayFeeEarning?
 
   @@index([customerId, status])
   @@index([provider, providerReference])
+}
+
+model ReepayAdminUser {
+  id        String          @id @default(uuid())
+  email     String          @unique
+  role      ReepayAdminRole @default(OWNER)
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model ReepayFeeEarning {
+  id           String                  @id @default(uuid())
+  sourceType   ReepayFeeSourceType
+  sourceId     String
+  amount       Decimal                 @db.Decimal(19, 8)
+  currency     WalletCurrency
+  status       ReepayFeeEarningStatus  @default(REALIZED)
+  realizedAt   DateTime                @default(now())
+  reversedAt   DateTime?
+  depositId    String?                 @unique
+  conversionId String?                 @unique
+  payoutId     String?                 @unique
+  createdAt    DateTime                @default(now())
+
+  deposit    Deposit?          @relation(fields: [depositId], references: [id])
+  conversion WalletConversion? @relation(fields: [conversionId], references: [id])
+  payout     Payout?           @relation(fields: [payoutId], references: [id])
+
+  @@unique([sourceType, sourceId])
+  @@index([currency, realizedAt])
+  @@index([sourceType, realizedAt])
+  @@index([status, realizedAt])
 }
 
 model WebhookLog {

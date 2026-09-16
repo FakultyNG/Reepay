@@ -25,6 +25,8 @@ export const envSchema = z
     REDIS_URL: z.string().url(),
     REEPAY_API_KEY: z.string().min(1),
     REEPAY_ALLOWED_APPLICATION_IDS: z.string().min(1).default("sangapay-backend"),
+    REEPAY_ADMIN_EMAIL: z.string().email().default("owner@reepay.local"),
+    REEPAY_ADMIN_API_KEY: optionalSecretSchema,
     SANGAPAY_WEBHOOK_ENABLED: z.coerce.boolean().default(false),
     SANGAPAY_WEBHOOK_URL: z.string().url().optional(),
     SANGAPAY_WEBHOOK_SECRET: optionalWebhookSecretSchema,

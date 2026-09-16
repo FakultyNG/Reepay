@@ -799,6 +799,22 @@ export class PayoutsService {
           where: { payoutId: payout.id },
           data: { status: TransactionStatus.COMPLETED }
         });
+
+        if (payout.reepayFee.greaterThan(0)) {
+          await tx.reepayFeeEarning.createMany({
+            data: [
+              {
+                sourceType: "PAYOUT",
+                sourceId: payout.id,
+                amount: payout.reepayFee,
+                currency: payout.sourceCurrency,
+                payoutId: payout.id
+              }
+            ],
+            skipDuplicates: true
+          });
+        }
+
         await tx.notificationEvent.create({
           data: {
             customerId: payout.customerId,
@@ -879,6 +895,21 @@ export class PayoutsService {
           where: { payoutId: payout.id },
           data: { status: TransactionStatus.COMPLETED }
         });
+
+        if (payout.reepayFee.greaterThan(0)) {
+          await tx.reepayFeeEarning.createMany({
+            data: [
+              {
+                sourceType: "PAYOUT",
+                sourceId: payout.id,
+                amount: payout.reepayFee,
+                currency: payout.sourceCurrency,
+                payoutId: payout.id
+              }
+            ],
+            skipDuplicates: true
+          });
+        }
 
         await tx.notificationEvent.create({
           data: {

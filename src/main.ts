@@ -35,6 +35,7 @@ async function bootstrap() {
     .setVersion("1.0")
     .addApiKey({ type: "apiKey", name: "X-Reepay-Api-Key", in: "header" }, "reepay-api-key")
     .addApiKey({ type: "apiKey", name: "X-Reepay-Application-Id", in: "header" }, "reepay-application-id")
+    .addApiKey({ type: "apiKey", name: "X-Reepay-Admin-Api-Key", in: "header" }, "reepay-admin-api-key")
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

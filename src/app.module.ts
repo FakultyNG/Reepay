@@ -2,6 +2,7 @@ import { HttpModule } from "@nestjs/axios";
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { AdminModule } from "./admin";
 import { CommonModule } from "./common/common.module";
 import { ConfigModule } from "./config/config.module";
 import { DatabaseModule } from "./database/database.module";
@@ -29,6 +30,7 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
       }
     ]),
     HealthModule,
+    AdminModule,
     WalletsModule,
     DepositsModule,
     FxModule,

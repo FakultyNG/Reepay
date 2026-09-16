@@ -29,6 +29,13 @@ export class AppConfigService {
     return this.env.REEPAY_ALLOWED_APPLICATION_IDS.split(",").map((id) => id.trim()).filter(Boolean);
   }
 
+  get admin() {
+    return {
+      email: this.env.REEPAY_ADMIN_EMAIL,
+      apiKey: this.env.REEPAY_ADMIN_API_KEY
+    };
+  }
+
   get sangapayWebhook() {
     return {
       enabled: this.env.SANGAPAY_WEBHOOK_ENABLED,

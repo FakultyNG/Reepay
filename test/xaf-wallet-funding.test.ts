@@ -269,6 +269,9 @@ describe("XAF wallet funding", () => {
       ledgerEntry: {
         create: vi.fn()
       },
+      reepayFeeEarning: {
+        createMany: vi.fn()
+      },
       notificationEvent: {
         create: vi.fn()
       },
@@ -326,6 +329,18 @@ describe("XAF wallet funding", () => {
         })
       })
     );
+    expect(tx.reepayFeeEarning.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          sourceType: "DEPOSIT",
+          sourceId: "dep_123",
+          amount: new Prisma.Decimal("150"),
+          currency: WalletCurrency.XAF,
+          depositId: "dep_123"
+        }
+      ],
+      skipDuplicates: true
+    });
     expect(tx.deposit.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: DepositStatus.COMPLETED })

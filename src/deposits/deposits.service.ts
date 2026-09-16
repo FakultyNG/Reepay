@@ -264,6 +264,21 @@ export class DepositsService {
           }
         });
 
+        if (current.reepayFee.greaterThan(0)) {
+          await tx.reepayFeeEarning.createMany({
+            data: [
+              {
+                sourceType: "DEPOSIT",
+                sourceId: current.id,
+                amount: current.reepayFee,
+                currency: WalletCurrency.XAF,
+                depositId: current.id
+              }
+            ],
+            skipDuplicates: true
+          });
+        }
+
         await tx.deposit.update({
           where: { id: current.id },
           data: {

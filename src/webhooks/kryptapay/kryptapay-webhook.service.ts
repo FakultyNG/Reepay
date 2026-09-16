@@ -328,6 +328,21 @@ export class KryptaPayWebhookService {
         }
       });
 
+      if (deposit.reepayFee.greaterThan(0)) {
+        await tx.reepayFeeEarning.createMany({
+          data: [
+            {
+              sourceType: "DEPOSIT",
+              sourceId: deposit.id,
+              amount: deposit.reepayFee,
+              currency: WalletCurrency.XAF,
+              depositId: deposit.id
+            }
+          ],
+          skipDuplicates: true
+        });
+      }
+
       await tx.deposit.update({
         where: { id: deposit.id },
         data: {

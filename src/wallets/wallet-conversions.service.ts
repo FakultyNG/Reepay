@@ -486,6 +486,21 @@ export class WalletConversionsService {
         }
       });
 
+      if (conversion.reepayFee.greaterThan(0)) {
+        await tx.reepayFeeEarning.createMany({
+          data: [
+            {
+              sourceType: "WALLET_CONVERSION",
+              sourceId: conversion.id,
+              amount: conversion.reepayFee,
+              currency: conversion.sourceCurrency,
+              conversionId: conversion.id
+            }
+          ],
+          skipDuplicates: true
+        });
+      }
+
       await tx.notificationEvent.create({
         data: {
           customerId: conversion.customerId,
