@@ -102,7 +102,7 @@ describe("KryptaPayClient", () => {
     const { client, request } = buildClient(
       okResponse({
         reference: "tx_123",
-        status: "COMPLETED",
+        status: "completed",
         amount: "300",
         currency: "XOF",
         network: "MTN_BJ",

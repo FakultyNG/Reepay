@@ -259,7 +259,7 @@ export function createMerchantReference(prefix: string) {
 }
 
 export function mapTransactionStatus(status: string): ProviderTransactionStatus {
-  switch (status) {
+  switch (status.trim().toUpperCase()) {
     case "PENDING":
       return "pending";
     case "PROCESSING":
