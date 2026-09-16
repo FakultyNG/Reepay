@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CommonModule } from "../common/common.module";
 import { ConfigModule } from "../config/config.module";
 import { DatabaseModule } from "../database/database.module";
 import { PayoutsModule } from "../payouts/payouts.module";
@@ -11,7 +12,7 @@ import { WiseWebhookController } from "./wise/wise-webhook.controller";
 import { WiseWebhookService } from "./wise/wise-webhook.service";
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, KryptaPayModule, PayoutsModule, SangaPayWebhookModule, WalletsModule],
+  imports: [ConfigModule, CommonModule, DatabaseModule, KryptaPayModule, PayoutsModule, SangaPayWebhookModule, WalletsModule],
   controllers: [KryptaPayWebhookController, WiseWebhookController],
   providers: [KryptaPayWebhookService, WiseWebhookService]
 })

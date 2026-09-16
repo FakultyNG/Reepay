@@ -126,7 +126,7 @@ export function mapKryptaPayPayin(
     reference: data.reference,
     status: mapTransactionStatus(data.status),
     amount: data.amount,
-    currency: data.currency,
+    currency: normalizeCurrency(data.currency),
     network: data.network ?? undefined,
     checkoutUrl: data.checkoutUrl ?? undefined,
     checkoutToken: data.checkoutToken ?? undefined,
@@ -151,7 +151,7 @@ export function mapKryptaPayPayout(
     reference: data.reference,
     status: mapTransactionStatus(data.status),
     amount: data.amount,
-    currency: data.currency,
+    currency: normalizeCurrency(data.currency),
     fee: data.fee,
     network: data.network ?? undefined,
     description: data.description ?? undefined,
@@ -201,8 +201,8 @@ export function mapKryptaPayFxRates(
     spreadBps: data.spreadBps,
     generatedAt: data.generatedAt,
     rates: data.rates.map((rate) => ({
-      from: rate.from,
-      to: rate.to,
+      from: normalizeCurrency(rate.from),
+      to: normalizeCurrency(rate.to),
       midRate: rate.mid,
       buyRate: rate.buy,
       sellRate: rate.sell,
@@ -218,8 +218,8 @@ export function mapKryptaPayQuote(
   trace: Omit<ProviderTrace, "providerTransactionId" | "providerReference">
 ): ConversionQuoteResult {
   return {
-    from: data.from,
-    to: data.to,
+    from: normalizeCurrency(data.from),
+    to: normalizeCurrency(data.to),
     fromAmount: data.fromAmount,
     toAmount: data.toAmount,
     midRate: data.midRate,
@@ -238,8 +238,8 @@ export function mapKryptaPayConversion(
     id: data.id,
     reference: data.reference,
     status: data.status,
-    from: data.fromCurrency,
-    to: data.toCurrency,
+    from: normalizeCurrency(data.fromCurrency),
+    to: normalizeCurrency(data.toCurrency),
     fromAmount: data.fromAmount,
     toAmount: data.toAmount,
     midRate: data.midRate,
@@ -275,6 +275,10 @@ export function mapTransactionStatus(status: string): ProviderTransactionStatus 
     default:
       return "unknown";
   }
+}
+
+function normalizeCurrency(currency: string): MoneyCurrency {
+  return currency.trim().toUpperCase() as MoneyCurrency;
 }
 
 export function resolveMerchantReference(prefix: string, context?: ProviderOperationContext) {

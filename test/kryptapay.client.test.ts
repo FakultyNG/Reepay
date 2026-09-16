@@ -39,7 +39,7 @@ describe("KryptaPayClient", () => {
         reference: "tx_123",
         status: "PENDING",
         amount: "300",
-        currency: "XOF",
+        currency: "xof",
         checkoutUrl: "https://checkout.example",
         checkoutToken: "sbx_123",
         expiresInSec: 60,
@@ -117,6 +117,7 @@ describe("KryptaPayClient", () => {
 
     expect(request).toHaveBeenCalledWith(expect.objectContaining({ method: "get", url: "/v1/payins/tx_123" }));
     expect(result.status).toBe("completed");
+    expect(result.currency).toBe("XOF");
     expect(result.trace.providerReference).toBe("tx_123");
   });
 

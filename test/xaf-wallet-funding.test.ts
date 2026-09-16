@@ -193,7 +193,7 @@ describe("XAF wallet funding", () => {
         reference: "tx_123",
         status: "completed",
         amount: "10150",
-        currency: "XAF",
+        currency: "xaf",
         trace: {
           provider: "kryptapay",
           providerTransactionId: "tx_123",
@@ -343,7 +343,7 @@ describe("XAF wallet funding", () => {
         reference: "tx_123",
         status: "completed",
         amount: "10150",
-        currency: "XAF",
+        currency: "xaf",
         trace: {
           provider: "kryptapay",
           providerTransactionId: "tx_123",

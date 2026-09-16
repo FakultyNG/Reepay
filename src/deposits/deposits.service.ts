@@ -211,7 +211,7 @@ export class DepositsService {
 
     if (providerStatus.status === "completed") {
       const providerAmount = parseMoneyDecimal(providerStatus.amount);
-      if (!deposit.totalDebit.equals(providerAmount) || deposit.currency !== WalletCurrency.XAF || providerStatus.currency !== "XAF") {
+      if (!deposit.totalDebit.equals(providerAmount) || deposit.currency !== WalletCurrency.XAF || !isXafCurrency(providerStatus.currency)) {
         throw new BadRequestException("Provider deposit status does not match internal deposit");
       }
 
@@ -462,4 +462,8 @@ function parseOptionalDate(value?: string) {
 
 function resolveExpiresAt(expiresInSec?: number) {
   return expiresInSec ? new Date(Date.now() + expiresInSec * 1000) : undefined;
+}
+
+function isXafCurrency(currency: string) {
+  return currency.trim().toUpperCase() === WalletCurrency.XAF;
 }

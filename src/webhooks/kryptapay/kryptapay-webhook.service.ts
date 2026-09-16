@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   UnauthorizedException
 } from "@nestjs/common";
 import {
@@ -17,6 +18,7 @@ import {
   WebhookProcessingStatus
 } from "@prisma/client";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { JsonLogger } from "../../common/logging/json-logger";
 import { parseMoneyDecimal } from "../../common/money/decimal";
 import { AppConfigService } from "../../config/app-config.service";
 import { PrismaService } from "../../database/prisma.service";
@@ -41,7 +43,8 @@ export class KryptaPayWebhookService {
     @Inject(KryptaPayClient) private readonly kryptaPay: KryptaPayClient,
     @Inject(PayoutsService) private readonly payouts: PayoutsService,
     @Inject(SangaPayWebhookDispatcher) private readonly sangapayWebhooks: SangaPayWebhookDispatcher,
-    @Inject(WalletConversionsService) private readonly walletConversions: WalletConversionsService
+    @Inject(WalletConversionsService) private readonly walletConversions: WalletConversionsService,
+    @Optional() @Inject(JsonLogger) private readonly logger?: JsonLogger
   ) {}
 
   async acceptWebhook(rawBody: Buffer, headers: KryptaPayWebhookHeaders) {
@@ -61,6 +64,12 @@ export class KryptaPayWebhookService {
     const payload = await this.parseVerifiedPayload(rawBody, headers);
 
     void this.processAcceptedWebhook(headers.eventId as string, payload, headers.requestId).catch(async (error: unknown) => {
+      this.logger?.error("KryptaPay webhook processing failed", error instanceof Error ? error.stack : undefined, {
+        eventId: headers.eventId,
+        eventType: headers.eventType,
+        requestId: headers.requestId
+      });
+
       try {
         await this.markWebhookFailed(headers.eventId as string, error);
       } catch {
@@ -245,7 +254,7 @@ export class KryptaPayWebhookService {
       throw new ConflictException("Provider payin is not completed");
     }
 
-    if (verified.currency !== "XAF") {
+    if (!isXafCurrency(verified.currency)) {
       throw new BadRequestException("Only XAF wallet deposits are supported");
     }
 
@@ -511,4 +520,8 @@ function payinLookupCandidates(payload: KryptaPayWebhookPayload) {
 
 function uniqueStrings(values: Array<string | undefined>) {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+}
+
+function isXafCurrency(currency: string) {
+  return currency.trim().toUpperCase() === WalletCurrency.XAF;
 }
