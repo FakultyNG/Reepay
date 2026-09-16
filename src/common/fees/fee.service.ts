@@ -22,7 +22,7 @@ export class FeeService {
     const percentageFee = (transactionAmount * fee.percent) / 100;
     const cappedPercentageFee =
       fee.percentCap === undefined ? percentageFee : Math.min(percentageFee, fee.percentCap);
-    const customerFee = fee.type === "fixed" ? fee.fixed : cappedPercentageFee;
+    const customerFee = fee.type === "fixed" ? fee.fixed : Math.ceil(cappedPercentageFee);
 
     return {
       transactionAmount,
@@ -46,7 +46,7 @@ export class FeeService {
     return capDecimal(
       transactionAmount.mul(new Prisma.Decimal(fee.percent)).div(100),
       fee.percentCap
-    ).toDecimalPlaces(4);
+    ).ceil();
   }
 
   calculateDepositProviderFeeDecimal(

@@ -20,6 +20,15 @@ const optionalPositiveIntSchema = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
   z.coerce.number().int().positive().optional()
 );
+const optionalPositiveNumberSchema = z.preprocess((value) => {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (normalized === "" || Number(normalized) === 0) return undefined;
+  }
+
+  if (value === 0) return undefined;
+  return value;
+}, z.coerce.number().positive().optional());
 const booleanSchema = z.preprocess((value) => {
   if (typeof value !== "string") {
     return value;
@@ -48,7 +57,7 @@ export const envSchema = z
     REEPAY_FEE_TYPE: feeTypeSchema.default("fixed"),
     REEPAY_FEE_FIXED: z.coerce.number().nonnegative().default(0),
     REEPAY_FEE_PERCENT: z.coerce.number().nonnegative().default(0),
-    REEPAY_FEE_PERCENT_CAP: z.coerce.number().nonnegative().optional(),
+    REEPAY_FEE_PERCENT_CAP: optionalPositiveNumberSchema,
     REEPAY_FEE_CURRENCY: z.string().min(3).max(3).default("XAF"),
     REEPAY_ENV: reepayEnvSchema.default("sandbox"),
     KRYPTAPAY_BASE_URL: z.string().url(),
@@ -69,7 +78,7 @@ export const envSchema = z
     REEPAY_EUR_PAYOUT_FEE_PERCENT_CAP: z.coerce.number().nonnegative().default(10),
     REEPAY_USDC_PAYOUT_FEE_FIXED: z.coerce.number().nonnegative().default(0),
     REEPAY_USDC_PAYOUT_FEE_PERCENT: z.coerce.number().nonnegative().default(0),
-    REEPAY_USDC_PAYOUT_FEE_PERCENT_CAP: z.coerce.number().nonnegative().optional(),
+    REEPAY_USDC_PAYOUT_FEE_PERCENT_CAP: optionalPositiveNumberSchema,
     REEPAY_RECONCILIATION_ENABLED: z.coerce.boolean().default(true),
     REEPAY_RECONCILIATION_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
     REEPAY_RECONCILIATION_LOOKBACK_MINUTES: z.coerce.number().int().positive().default(1440),

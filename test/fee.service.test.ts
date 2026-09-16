@@ -62,6 +62,46 @@ describe("FeeService", () => {
     restore();
   });
 
+  it("treats an empty percentage cap as no cap", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "percentage",
+      REEPAY_FEE_FIXED: "150",
+      REEPAY_FEE_PERCENT: "2.5",
+      REEPAY_FEE_PERCENT_CAP: ""
+    });
+
+    expect(service.calculateCustomerFeeDecimal(new Prisma.Decimal("10000")).toFixed()).toBe("250");
+
+    restore();
+  });
+
+  it("treats a zero percentage cap as no cap", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "percentage",
+      REEPAY_FEE_FIXED: "150",
+      REEPAY_FEE_PERCENT: "2.5",
+      REEPAY_FEE_PERCENT_CAP: "0"
+    });
+
+    expect(service.calculateCustomerFeeDecimal(new Prisma.Decimal("300")).toFixed()).toBe("8");
+
+    restore();
+  });
+
+  it("rounds percentage-based XAF fees up to a whole unit", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "percentage",
+      REEPAY_FEE_FIXED: "50",
+      REEPAY_FEE_PERCENT: "2.5",
+      REEPAY_FEE_PERCENT_CAP: ""
+    });
+
+    expect(service.calculateCustomerFeeDecimal(new Prisma.Decimal("302")).toFixed()).toBe("8");
+    expect(service.calculateCustomerFee(302).customerFee).toBe(8);
+
+    restore();
+  });
+
   it("normalizes percentage fee type casing from environment", () => {
     const { service, restore } = buildFeeService({
       REEPAY_FEE_TYPE: " Percentage ",
