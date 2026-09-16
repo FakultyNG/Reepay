@@ -14,6 +14,7 @@ import { parseMoneyDecimal } from "../common/money/decimal";
 import { PrismaService } from "../database/prisma.service";
 import { KryptaPayClient } from "../providers/kryptapay";
 import { SangaPayWebhookDispatcher } from "../webhooks/sangapay";
+import type { CreateXafDepositQuoteDto } from "./dto/create-xaf-deposit-quote.dto";
 import type { CreateXafDepositDto } from "./dto/create-xaf-deposit.dto";
 
 @Injectable()
@@ -25,12 +26,35 @@ export class DepositsService {
     @Inject(SangaPayWebhookDispatcher) private readonly sangapayWebhooks: SangaPayWebhookDispatcher
   ) {}
 
+  createXafDepositQuote(dto: CreateXafDepositQuoteDto) {
+    const pricing = this.calculateXafDepositPricing(dto.amount);
+
+    return {
+      amount: pricing.creditedAmount.toFixed(),
+      currency: WalletCurrency.XAF,
+      creditedAmount: {
+        amount: pricing.creditedAmount.toFixed(),
+        currency: WalletCurrency.XAF
+      },
+      fees: {
+        provider: { amount: pricing.providerFee.toFixed(), currency: WalletCurrency.XAF },
+        reepay: { amount: pricing.reepayFee.toFixed(), currency: WalletCurrency.XAF }
+      },
+      totalFee: {
+        amount: pricing.providerFee.add(pricing.reepayFee).toFixed(),
+        currency: WalletCurrency.XAF
+      },
+      totalDebit: {
+        amount: pricing.totalDebit.toFixed(),
+        currency: WalletCurrency.XAF
+      },
+      network: dto.network,
+      phoneNumber: dto.phoneNumber
+    };
+  }
+
   async createXafDeposit(dto: CreateXafDepositDto, requestId?: string, idempotencyKey?: string) {
-    const amount = parseMoneyDecimal(dto.amount);
-    const creditedAmount = amount;
-    const providerFee = new Prisma.Decimal(0);
-    const reepayFee = this.feeService.calculateCustomerFeeDecimal(amount);
-    const totalDebit = creditedAmount.add(providerFee).add(reepayFee).toDecimalPlaces(4);
+    const { amount, creditedAmount, providerFee, reepayFee, totalDebit } = this.calculateXafDepositPricing(dto.amount);
     const merchantReference = `rp_dep_${Date.now().toString(36)}_${randomUUID().replaceAll("-", "").slice(0, 16)}`;
     const effectiveIdempotencyKey = idempotencyKey ?? randomUUID();
 
@@ -361,6 +385,16 @@ export class DepositsService {
       updatedAt: deposit.updatedAt.toISOString(),
       completedAt: deposit.completedAt?.toISOString()
     };
+  }
+
+  private calculateXafDepositPricing(amountValue: string) {
+    const amount = parseMoneyDecimal(amountValue);
+    const creditedAmount = amount;
+    const providerFee = new Prisma.Decimal(0);
+    const reepayFee = this.feeService.calculateCustomerFeeDecimal(amount);
+    const totalDebit = creditedAmount.add(providerFee).add(reepayFee).toDecimalPlaces(4);
+
+    return { amount, creditedAmount, providerFee, reepayFee, totalDebit };
   }
 }
 

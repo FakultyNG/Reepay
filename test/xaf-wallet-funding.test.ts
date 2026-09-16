@@ -23,6 +23,31 @@ function feeService(amount = "150") {
 }
 
 describe("XAF wallet funding", () => {
+  it("quotes XAF deposit fees without creating a provider checkout", () => {
+    const prisma = {} as unknown as PrismaService;
+    const kryptaPay = {
+      createPayinCheckout: vi.fn()
+    } as unknown as KryptaPayClient;
+    const fees = feeService();
+    const service = new DepositsService(prisma, kryptaPay, fees, sangapayWebhooks());
+
+    const result = service.createXafDepositQuote({
+      amount: "10000",
+      network: "MTN_CM",
+      phoneNumber: "237670000000"
+    });
+
+    expect(kryptaPay.createPayinCheckout).not.toHaveBeenCalled();
+    expect(result.amount).toBe("10000");
+    expect(result.creditedAmount.amount).toBe("10000");
+    expect(result.fees.provider.amount).toBe("0");
+    expect(result.fees.reepay.amount).toBe("150");
+    expect(result.totalFee.amount).toBe("150");
+    expect(result.totalDebit.amount).toBe("10150");
+    expect(result.network).toBe("MTN_CM");
+    expect(result.phoneNumber).toBe("237670000000");
+  });
+
   it("creates a KryptaPay checkout and records an internal pending XAF deposit", async () => {
     const depositCreate = vi.fn().mockResolvedValue({
       id: "dep_123",

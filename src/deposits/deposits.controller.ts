@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Inject, Param, Post, UseGuards } from "@nestjs/common";
 import { ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { ApiKeyGuard } from "../auth/api-key.guard";
+import { CreateXafDepositQuoteDto } from "./dto/create-xaf-deposit-quote.dto";
 import { CreateXafDepositDto } from "./dto/create-xaf-deposit.dto";
 import { DepositsService } from "./deposits.service";
 
@@ -10,6 +11,11 @@ import { DepositsService } from "./deposits.service";
 @Controller({ path: "deposits", version: "1" })
 export class DepositsController {
   constructor(@Inject(DepositsService) private readonly deposits: DepositsService) {}
+
+  @Post("xaf/quote")
+  createXafDepositQuote(@Body() body: CreateXafDepositQuoteDto) {
+    return this.deposits.createXafDepositQuote(body);
+  }
 
   @Post("xaf")
   createXafDeposit(
