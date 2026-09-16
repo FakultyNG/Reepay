@@ -238,11 +238,8 @@ export class KryptaPayWebhookService {
   }
 
   private async processPayinReceived(payload: KryptaPayWebhookPayload, requestId?: string) {
-    const providerReference = payload.data.reference;
-    const verified = await this.kryptaPay.getPayinStatus(providerReference, {
-      requestId,
-      merchantReference: `rp_webhook_${payload.event_id}`
-    });
+    const lookupCandidates = payinLookupCandidates(payload);
+    const verified = await this.getVerifiedPayinStatus(lookupCandidates, payload.event_id, requestId);
 
     if (verified.status !== "completed") {
       throw new ConflictException("Provider payin is not completed");
@@ -253,10 +250,22 @@ export class KryptaPayWebhookService {
     }
 
     const verifiedAmount = parseMoneyDecimal(verified.amount);
+    const depositLookupCandidates = uniqueStrings([
+      ...lookupCandidates,
+      verified.reference,
+      verified.trace.providerReference,
+      verified.trace.providerTransactionId
+    ]);
 
     const eventPayload = await this.prisma.$transaction(async (tx) => {
-      const deposit = await tx.deposit.findUnique({
-        where: { providerReference },
+      const deposit = await tx.deposit.findFirst({
+        where: {
+          OR: depositLookupCandidates.flatMap((reference) => [
+            { providerReference: reference },
+            { providerTransactionId: reference },
+            { merchantReference: reference }
+          ])
+        },
         include: { customer: true }
       });
 
@@ -388,9 +397,16 @@ export class KryptaPayWebhookService {
   }
 
   private async processPayinFailed(payload: KryptaPayWebhookPayload, requestId?: string) {
+    const lookupCandidates = payinLookupCandidates(payload);
     const eventPayload = await this.prisma.$transaction(async (tx) => {
-      const deposit = await tx.deposit.findUnique({
-        where: { providerReference: payload.data.reference },
+      const deposit = await tx.deposit.findFirst({
+        where: {
+          OR: lookupCandidates.flatMap((reference) => [
+            { providerReference: reference },
+            { providerTransactionId: reference },
+            { merchantReference: reference }
+          ])
+        },
         include: { customer: true }
       });
 
@@ -449,6 +465,23 @@ export class KryptaPayWebhookService {
     }
   }
 
+  private async getVerifiedPayinStatus(candidates: string[], eventId: string, requestId?: string) {
+    let lastError: unknown;
+
+    for (const reference of candidates) {
+      try {
+        return await this.kryptaPay.getPayinStatus(reference, {
+          requestId,
+          merchantReference: `rp_webhook_${eventId}`
+        });
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new NotFoundException("Provider payin not found");
+  }
+
   private async markWebhookProcessed(eventId: string) {
     await this.prisma.webhookLog.update({
       where: { provider_eventId: { provider: "kryptapay", eventId } },
@@ -470,4 +503,12 @@ export class KryptaPayWebhookService {
 
 function assertUnhandledEvent(eventType: KryptaPayWebhookEventType): never {
   throw new BadRequestException(`Unsupported KryptaPay webhook event: ${eventType}`);
+}
+
+function payinLookupCandidates(payload: KryptaPayWebhookPayload) {
+  return uniqueStrings([payload.data.reference, payload.data.transaction_id, payload.data.provider_ref]);
+}
+
+function uniqueStrings(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }

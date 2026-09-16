@@ -27,8 +27,8 @@ export class DepositsController {
   }
 
   @Get(":id")
-  getDepositStatus(@Param("id") id: string) {
-    return this.deposits.getDepositStatus(id);
+  getDepositStatus(@Param("id") id: string, @Headers("x-request-id") requestId?: string) {
+    return this.deposits.getDepositStatus(id, requestId);
   }
 
   @Post(":id/verify")

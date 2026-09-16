@@ -129,11 +129,22 @@ export class DepositsService {
     }
   }
 
-  async getDepositStatus(id: string) {
+  async getDepositStatus(id: string, requestId?: string) {
     const deposit = await this.prisma.deposit.findUnique({ where: { id } });
 
     if (!deposit) {
       throw new NotFoundException("Deposit not found");
+    }
+
+    if (deposit.status === DepositStatus.PENDING || deposit.status === DepositStatus.PROCESSING) {
+      await this.reconcileProviderDepositStatus(id, requestId);
+      const current = await this.prisma.deposit.findUnique({ where: { id } });
+
+      if (!current) {
+        throw new NotFoundException("Deposit not found");
+      }
+
+      return this.toDepositResponse(current);
     }
 
     return this.toDepositResponse(deposit);
@@ -382,6 +393,18 @@ export class DepositsService {
       fees: {
         provider: { amount: providerFee.toFixed(), currency: deposit.currency },
         reepay: { amount: reepayFee.toFixed(), currency: deposit.currency }
+      },
+      providerFee: {
+        amount: providerFee.toFixed(),
+        currency: deposit.currency
+      },
+      reepayFee: {
+        amount: reepayFee.toFixed(),
+        currency: deposit.currency
+      },
+      totalFee: {
+        amount: providerFee.add(reepayFee).toFixed(),
+        currency: deposit.currency
       },
       totalDebit: {
         amount: totalDebit.toFixed(),

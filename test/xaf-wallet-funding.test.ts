@@ -145,6 +145,8 @@ describe("XAF wallet funding", () => {
     expect(result.status).toBe("pending");
     expect(result.amount).toBe("10000");
     expect(result.fees.reepay.amount).toBe("150");
+    expect(result.reepayFee.amount).toBe("150");
+    expect(result.totalFee.amount).toBe("150");
     expect(result.totalDebit.amount).toBe("10150");
     expect(result.expiresInSec).toBe(900);
     expect(result.expiresAt).toBe("2026-08-27T00:15:00.000Z");
@@ -211,6 +213,7 @@ describe("XAF wallet funding", () => {
     expect(reconcile).toHaveBeenCalledWith("dep_123", "req_123");
     expect(result.status).toBe("completed");
     expect(result.amount).toBe("10000");
+    expect(result.totalFee.amount).toBe("150");
     expect(result.totalDebit.amount).toBe("10150");
     expect(result.verification).toMatchObject({
       verified: true,
@@ -218,6 +221,55 @@ describe("XAF wallet funding", () => {
       amount: "10150",
       expectedAmount: "10150"
     });
+  });
+
+  it("reconciles a pending deposit when status is polled", async () => {
+    const pendingDeposit = {
+      id: "dep_123",
+      amount: new Prisma.Decimal("10000"),
+      creditedAmount: new Prisma.Decimal("10000"),
+      providerFee: new Prisma.Decimal("0"),
+      reepayFee: new Prisma.Decimal("150"),
+      totalDebit: new Prisma.Decimal("10150"),
+      currency: WalletCurrency.XAF,
+      status: DepositStatus.PENDING,
+      network: "MTN_CM",
+      phoneNumber: "237670000000",
+      merchantReference: "rp_dep_test",
+      providerReference: "tx_123",
+      providerTransactionId: "tx_123",
+      checkoutUrl: "https://checkout.example",
+      checkoutToken: "sbx_123",
+      expiresInSec: 900,
+      expiresAt: new Date("2026-08-27T00:15:00.000Z"),
+      failureReason: null,
+      createdAt: new Date("2026-08-27T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-27T00:00:00.000Z"),
+      completedAt: null
+    };
+    const completedDeposit = {
+      ...pendingDeposit,
+      status: DepositStatus.COMPLETED,
+      completedAt: new Date("2026-08-27T00:02:00.000Z")
+    };
+    const prisma = {
+      deposit: {
+        findUnique: vi.fn()
+          .mockResolvedValueOnce(pendingDeposit)
+          .mockResolvedValueOnce(completedDeposit)
+      }
+    } as unknown as PrismaService;
+    const service = new DepositsService(prisma, {} as KryptaPayClient, feeService(), sangapayWebhooks());
+    const reconcile = vi.spyOn(service, "reconcileProviderDepositStatus").mockResolvedValue({
+      reconciled: true,
+      status: "completed"
+    });
+
+    const result = await service.getDepositStatus("dep_123", "req_123");
+
+    expect(reconcile).toHaveBeenCalledWith("dep_123", "req_123");
+    expect(result.status).toBe("completed");
+    expect(result.totalFee.amount).toBe("150");
   });
 
   it("credits the Reepay ledger after a signed PAYIN_RECEIVED webhook and provider status verification", async () => {
@@ -240,7 +292,7 @@ describe("XAF wallet funding", () => {
 
     const tx = {
       deposit: {
-        findUnique: vi.fn().mockResolvedValue({
+        findFirst: vi.fn().mockResolvedValue({
           id: "dep_123",
           customerId: "customer_123",
           amount: new Prisma.Decimal("10000"),
@@ -314,6 +366,16 @@ describe("XAF wallet funding", () => {
     expect(kryptaPay.getPayinStatus).toHaveBeenCalledWith(
       "tx_123",
       expect.objectContaining({ requestId: "req_123" })
+    );
+    expect(tx.deposit.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { providerReference: "tx_123" },
+            { providerTransactionId: "provider_tx_123" }
+          ])
+        })
+      })
     );
     expect(tx.wallet.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
