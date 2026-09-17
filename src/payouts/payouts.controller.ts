@@ -21,15 +21,6 @@ export class PayoutsController {
     @Inject(WalletConversionsService) private readonly conversions: WalletConversionsService
   ) {}
 
-  @Post("eur/quote")
-  createEurPayoutQuote(
-    @Body() body: CreateEurPayoutQuoteDto,
-    @Headers("x-request-id") requestId?: string,
-    @Headers("idempotency-key") idempotencyKey?: string
-  ) {
-    return this.payouts.createEurPayoutQuote(body, requestId, idempotencyKey);
-  }
-
   @Post("eur/recipient/validate")
   validateRecipient(@Body() body: ValidateEurRecipientDto) {
     return this.payouts.validateRecipient(body.iban, body.beneficiaryName);
@@ -69,15 +60,6 @@ export class PayoutsController {
     @Headers("idempotency-key") idempotencyKey?: string
   ) {
     return this.payouts.confirmEurWiseTagPayout(body, requestId, idempotencyKey);
-  }
-
-  @Post("eur/confirm")
-  confirmEurPayout(
-    @Body() body: ConfirmWalletConversionDto,
-    @Headers("x-request-id") requestId?: string,
-    @Headers("idempotency-key") idempotencyKey?: string
-  ) {
-    return this.conversions.confirm(body, WalletCurrency.EUR, requestId, idempotencyKey);
   }
 
   @Post("usdc/confirm")

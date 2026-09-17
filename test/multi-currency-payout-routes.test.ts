@@ -18,9 +18,7 @@ describe("Multi-currency payout routes", () => {
     confirmEurWiseTagPayout: vi.fn(),
     createUsdcAddressPayoutQuote: vi.fn(),
     confirmUsdcAddressPayout: vi.fn(),
-    createEurPayoutQuote: vi.fn(),
     validateRecipient: vi.fn(),
-    confirmEurPayout: vi.fn(),
     getPayoutStatus: vi.fn()
   };
   const conversions = {
@@ -49,14 +47,8 @@ describe("Multi-currency payout routes", () => {
     vi.clearAllMocks();
   });
 
-  it("routes EUR and USDC wallet funding aliases through wallet conversion confirmation", async () => {
+  it("routes only the USDC payout compatibility alias through wallet conversion confirmation", async () => {
     conversions.confirm.mockResolvedValue({ id: "conversion_123" });
-
-    await request(app.getHttpServer())
-      .post("/v1/payouts/eur/confirm")
-      .set("Idempotency-Key", "idem_eur_123")
-      .send({ quoteId: "quote_eur_123" })
-      .expect(201);
 
     const response = await request(app.getHttpServer())
       .post("/v1/payouts/usdc/confirm")
@@ -65,17 +57,28 @@ describe("Multi-currency payout routes", () => {
 
     expect(response.status).toBe(201);
     expect(conversions.confirm).toHaveBeenCalledWith(
-      { quoteId: "quote_eur_123" },
-      WalletCurrency.EUR,
-      undefined,
-      "idem_eur_123"
-    );
-    expect(conversions.confirm).toHaveBeenCalledWith(
       { quoteId: "quote_123" },
       WalletCurrency.USDC,
       undefined,
       "idem_123"
     );
+  });
+
+  it("does not expose the retired direct XAF to EUR IBAN payout routes", async () => {
+    await request(app.getHttpServer())
+      .post("/v1/payouts/eur/quote")
+      .send({
+        customerId: "cust_123",
+        amount: "25",
+        iban: "FR7630006000011234567890189",
+        beneficiaryName: "Jane Doe"
+      })
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .post("/v1/payouts/eur/confirm")
+      .send({ quoteId: "quote_eur_123" })
+      .expect(404);
   });
 
   it("routes explicit external payout quote endpoints", async () => {

@@ -214,10 +214,9 @@ XAF-funded EUR wallet funding is available through:
 ```text
 POST /v1/wallet/eur/quote
 POST /v1/wallet/eur/confirm
-POST /v1/payouts/eur/confirm
 ```
 
-`POST /v1/payouts/eur/confirm` is a compatibility alias for confirming XAF -> EUR wallet funding. Quote creation requests a KryptaPay XAF -> EUR quote with `side=credit_to`, calculates the XAF source amount, Reepay fee, and total XAF customer debit. Confirmation requires `Idempotency-Key`, verifies quote expiry, verifies XAF wallet balance, atomically debits the internal XAF ledger, then calls KryptaPay `POST /v1/payouts/` to move EUR to Reepay's configured Wise EUR receiving account.
+Quote creation requests a KryptaPay XAF -> EUR quote with `side=credit_to`, calculates the XAF source amount, Reepay fee, and total XAF customer debit. Confirmation requires `Idempotency-Key`, verifies quote expiry, verifies XAF wallet balance, atomically debits the internal XAF ledger, then calls KryptaPay to move EUR to Reepay's configured Wise EUR receiving account. Wallet funding is exposed only through `/v1/wallet/eur/quote` and `/v1/wallet/eur/confirm`.
 
 The initial KryptaPay payout response is treated only as provider acceptance. Reepay keeps the internal payout in `processing` until KryptaPay webhook events are received and the payout is re-verified with KryptaPay `GET /v1/payouts/{id}`. Failed, cancelled, or refunded payouts create exactly one XAF wallet reversal through an internal ledger credit.
 
@@ -301,7 +300,7 @@ The stable Reepay public API is provider-neutral and intended for SangaPay backe
 - Wallet: `GET /v1/wallet/xaf`, `GET /v1/wallet/eur`, `GET /v1/wallet/usdc`, `GET /v1/wallet/balance`, `GET /v1/wallet/summary`, `GET /v1/wallet/funding-instructions`, `GET /v1/wallet/recent-transactions`, `POST /v1/wallet/eur/quote`, `POST /v1/wallet/eur/confirm`, `POST /v1/wallet/usdc/quote`, `POST /v1/wallet/usdc/confirm`
 - Deposits: `POST /v1/deposits/xaf`, `GET /v1/deposits/:id`, `POST /v1/deposits/:id/verify`
 - FX: `POST /v1/fx/quote`, `POST /v1/fx/quote/xaf-eur`, `POST /v1/fx/quote/xaf-usdc`, `POST /v1/fx/quote/xaf-eur/payout`
-- Payouts: `POST /v1/payouts/eur/recipient/validate`, `POST /v1/payouts/eur/quote`, `POST /v1/payouts/eur/confirm`, `POST /v1/payouts/eur/iban/quote`, `POST /v1/payouts/eur/iban/confirm`, `POST /v1/payouts/eur/wisetag/quote`, `POST /v1/payouts/eur/wisetag/confirm`, `POST /v1/payouts/usdc/confirm`, `POST /v1/payouts/usdc/address/quote`, `POST /v1/payouts/usdc/address/confirm`, `GET /v1/payouts/:id`
+- Payouts: `POST /v1/payouts/eur/recipient/validate`, `POST /v1/payouts/eur/iban/quote`, `POST /v1/payouts/eur/iban/confirm`, `POST /v1/payouts/eur/wisetag/quote`, `POST /v1/payouts/eur/wisetag/confirm`, `POST /v1/payouts/usdc/confirm`, `POST /v1/payouts/usdc/address/quote`, `POST /v1/payouts/usdc/address/confirm`, `GET /v1/payouts/:id`
 - Transactions: `GET /v1/transactions`, `GET /v1/transactions/:id`
 
 Public responses must not expose KryptaPay API keys, KryptaPay webhook secrets, Wise API tokens, provider raw payloads, or internal provider IDs. Provider references remain stored internally for reconciliation and support workflows.
