@@ -34,6 +34,12 @@ type ReservedWalletPayout = {
 
 type PayoutWalletCurrency = "EUR" | "USDC";
 
+type SubmittedProviderPayout = {
+  id: string;
+  reference: string;
+  providerCost?: Prisma.Decimal;
+};
+
 @Injectable()
 export class PayoutsService {
   constructor(
@@ -392,7 +398,7 @@ export class PayoutsService {
     const reserved = await this.reserveWalletCurrencyPayoutDebit(dto.quoteId, sourceCurrency, destinationType, idempotencyKey);
 
     try {
-      const providerResult =
+      const providerResult: SubmittedProviderPayout =
         reserved.provider === "wise"
           ? await this.submitWisePayout(reserved, requestId)
           : await this.submitUsdcAddressPayout(reserved, requestId, idempotencyKey);
@@ -402,7 +408,8 @@ export class PayoutsService {
         data: {
           status: PayoutStatus.PROCESSING,
           providerReference: providerResult.reference,
-          providerTransactionId: providerResult.id
+          providerTransactionId: providerResult.id,
+          ...(providerResult.providerCost ? { providerCost: providerResult.providerCost } : {})
         }
       });
 
@@ -574,7 +581,10 @@ export class PayoutsService {
     return parseMoneyDecimal(quote.fee).toDecimalPlaces(4);
   }
 
-  private async submitWisePayout(payout: ReservedWalletPayout, requestId?: string) {
+  private async submitWisePayout(
+    payout: ReservedWalletPayout,
+    requestId?: string
+  ): Promise<SubmittedProviderPayout> {
     const recipient =
       payout.destinationType === "wisetag"
         ? await this.wise.createWiseTagContact({ wiseTag: payout.recipientWiseTag ?? "" }, { requestId })
@@ -618,7 +628,7 @@ export class PayoutsService {
     payout: ReservedWalletPayout,
     requestId?: string,
     idempotencyKey?: string
-  ) {
+  ): Promise<SubmittedProviderPayout> {
     const providerPayout = await this.kryptaPay.createPayout(
       {
         amount: payout.amount,
@@ -639,7 +649,8 @@ export class PayoutsService {
 
     return {
       id: providerPayout.trace.providerTransactionId ?? providerPayout.id,
-      reference: providerPayout.reference
+      reference: providerPayout.reference,
+      providerCost: providerPayout.fee ? parseMoneyDecimal(providerPayout.fee) : new Prisma.Decimal(0)
     };
   }
 
@@ -784,11 +795,24 @@ export class PayoutsService {
       throw new NotFoundException("Payout not found for provider reference");
     }
 
+    const providerCost = providerPayout.fee ? parseMoneyDecimal(providerPayout.fee) : undefined;
+
+    if (providerCost && !providerCost.equals(payout.providerCost)) {
+      await this.prisma.payout.update({
+        where: { id: payout.id },
+        data: { providerCost }
+      });
+    }
+
     if (status === "completed" && providerPayout.status === "completed") {
       const eventPayload = await this.prisma.$transaction(async (tx) => {
         const updated = await tx.payout.updateMany({
           where: { id: payout.id, status: { not: PayoutStatus.COMPLETED } },
-          data: { status: PayoutStatus.COMPLETED, completedAt: new Date() }
+          data: {
+            status: PayoutStatus.COMPLETED,
+            completedAt: new Date(),
+            ...(providerCost ? { providerCost } : {})
+          }
         });
 
         if (updated.count === 0) {
@@ -1074,6 +1098,8 @@ export class PayoutsService {
     recipientName: string | null;
     recipientWiseTag?: string | null;
   }) {
+    const totalFee = quote.providerFee.add(quote.reepayFee);
+
     return {
       id: quote.id,
       source: {
@@ -1087,6 +1113,10 @@ export class PayoutsService {
       fees: {
         provider: { amount: quote.providerFee.toFixed(), currency: quote.sourceCurrency },
         reepay: { amount: quote.reepayFee.toFixed(), currency: quote.sourceCurrency }
+      },
+      totalFee: {
+        amount: totalFee.toFixed(),
+        currency: quote.sourceCurrency
       },
       totalDebit: {
         amount: quote.totalDebit.toFixed(),

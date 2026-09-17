@@ -28,6 +28,49 @@ function sangapayWebhooks() {
 }
 
 describe("EUR payout flow", () => {
+  it("charges only the Reepay fee for a USDC address payout quote", async () => {
+    const prisma = {
+      payoutQuote: {
+        findUnique: vi.fn(),
+        create: vi.fn().mockImplementation(({ data }) =>
+          Promise.resolve({
+            id: "quote_usdc_123",
+            ...data,
+            sourceCurrency: WalletCurrency.USDC,
+            quotedAt: now,
+            recipientIban: null,
+            recipientName: null,
+            recipientWiseTag: null
+          })
+        )
+      }
+    } as unknown as PrismaService;
+    const fees = {
+      calculateCurrencyFeeDecimal: vi.fn().mockReturnValue(new Prisma.Decimal("0.203"))
+    } as unknown as FeeService;
+    const service = new PayoutsService(prisma, {} as KryptaPayClient, fees, config(), sangapayWebhooks());
+
+    const result = await service.createUsdcAddressPayoutQuote(
+      {
+        customerId: "sanga_user_1",
+        amount: "10",
+        network: "POLYGON",
+        address: "0xabc"
+      },
+      "quote_usdc_idem_123"
+    );
+
+    expect(result).toMatchObject({
+      fees: {
+        provider: { amount: "0", currency: "USDC" },
+        reepay: { amount: "0.203", currency: "USDC" }
+      },
+      totalFee: { amount: "0.203", currency: "USDC" },
+      totalDebit: { amount: "10.203", currency: "USDC" },
+      rate: "1"
+    });
+  });
+
   it("quotes EUR payout from XAF using provider FX quote and configured fees", async () => {
     const prisma = {
       payoutQuote: {
@@ -83,6 +126,7 @@ describe("EUR payout flow", () => {
         provider: { amount: "0", currency: "XAF" },
         reepay: { amount: "100", currency: "XAF" }
       },
+      totalFee: { amount: "100", currency: "XAF" },
       totalDebit: { amount: "164100", currency: "XAF" }
     });
   });

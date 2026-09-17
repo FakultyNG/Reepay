@@ -348,6 +348,7 @@ model Payout {
   currency              String
   sourceAmount          Decimal      @db.Decimal(19, 8)
   providerFee           Decimal      @db.Decimal(19, 8)
+  providerCost          Decimal      @default(0) @db.Decimal(19, 8)
   reepayFee             Decimal      @db.Decimal(19, 8)
   totalDebit            Decimal      @db.Decimal(19, 8)
   status                PayoutStatus @default(PENDING)
