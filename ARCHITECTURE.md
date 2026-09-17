@@ -218,6 +218,19 @@ POST /v1/wallet/eur/confirm
 
 Quote creation requests a KryptaPay XAF -> EUR quote with `side=credit_to`, calculates the XAF source amount, Reepay fee, and total XAF customer debit. Confirmation requires `Idempotency-Key`, verifies quote expiry, verifies XAF wallet balance, atomically debits the internal XAF ledger, then calls KryptaPay to move EUR to Reepay's configured Wise EUR receiving account. Wallet funding is exposed only through `/v1/wallet/eur/quote` and `/v1/wallet/eur/confirm`.
 
+Conversion pricing is available from `POST /v1/fx/quote`, `POST /v1/fx/quote/xaf-eur`, and
+`POST /v1/fx/quote/xaf-usdc`. Actionable wallet-funding pricing is returned by
+`POST /v1/wallet/eur/quote` and `POST /v1/wallet/usdc/quote`. Responses expose the provider
+`midRate`, `appliedRate`, `spreadBps`, and the XAF-equivalent conversion spread. Wallet quotes also
+return explicit provider and Reepay fees, `totalExplicitFee`, `totalFee`, and `totalDebit`. The FX
+spread is already embedded in the XAF source amount, so it is disclosed in `totalFee` but is not
+added to `totalDebit` a second time.
+
+EUR wallet funding additionally applies the temporary KryptaPay bank-payout fallback configured by
+`KRYPTAPAY_BANK_PAYOUT_FEE_FALLBACK_ENABLED` and `KRYPTAPAY_BANK_PAYOUT_FEE_PERCENT`. The fee is
+calculated from the submitted XAF source amount and rounded up to whole XAF. This fallback does not
+apply to USDC conversion or Wise outbound payouts. A future provider-quoted fee takes precedence.
+
 The initial KryptaPay payout response is treated only as provider acceptance. Reepay keeps the internal payout in `processing` until KryptaPay webhook events are received and the payout is re-verified with KryptaPay `GET /v1/payouts/{id}`. Failed, cancelled, or refunded payouts create exactly one XAF wallet reversal through an internal ledger credit.
 
 Live-wallet external payout routes are:

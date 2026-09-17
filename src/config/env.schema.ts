@@ -65,6 +65,8 @@ export const envSchema = z
     KRYPTAPAY_WEBHOOK_SECRET: z.string().min(1),
     KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED: booleanSchema.default(false),
     KRYPTAPAY_DEPOSIT_FEE_PERCENT: z.coerce.number().nonnegative().lt(100).default(2.5),
+    KRYPTAPAY_BANK_PAYOUT_FEE_FALLBACK_ENABLED: booleanSchema.default(false),
+    KRYPTAPAY_BANK_PAYOUT_FEE_PERCENT: z.coerce.number().nonnegative().lt(100).default(0.3),
     WISE_BASE_URL: z.string().url().default("https://api.wise.com"),
     WISE_API_TOKEN: optionalSecretSchema,
     WISE_PROFILE_ID: optionalPositiveIntSchema,

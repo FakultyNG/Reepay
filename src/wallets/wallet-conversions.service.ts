@@ -54,7 +54,18 @@ export class WalletConversionsService {
       { requestId, merchantReference }
     );
     const sourceAmount = parseMoneyDecimal(fxQuote.fromAmount);
-    const providerFee = new Prisma.Decimal(0);
+    const midRate = parseMoneyDecimal(fxQuote.midRate);
+    if (midRate.lessThanOrEqualTo(0)) {
+      throw new BadRequestException("Provider FX quote returned an invalid mid-market rate");
+    }
+    const midMarketSourceAmount = destinationAmount.div(midRate);
+    const conversionSpread = sourceAmount.greaterThan(midMarketSourceAmount)
+      ? sourceAmount.sub(midMarketSourceAmount).toDecimalPlaces(8)
+      : new Prisma.Decimal(0);
+    const providerFee =
+      destinationCurrency === WalletCurrency.EUR
+        ? this.feeService.calculateBankPayoutProviderFeeDecimal(sourceAmount)
+        : new Prisma.Decimal(0);
     const reepayFee = this.feeService.calculateCustomerFeeDecimal(sourceAmount);
     const totalDebit = sourceAmount.add(providerFee).add(reepayFee).toDecimalPlaces(4);
     const expiresAt = new Date(fxQuote.expiresAt);
@@ -79,6 +90,9 @@ export class WalletConversionsService {
         reepayFee,
         totalDebit,
         rate: new Prisma.Decimal(fxQuote.appliedRate),
+        midRate,
+        spreadBps: fxQuote.spreadBps,
+        conversionSpread,
         provider: destinationCurrency === WalletCurrency.EUR ? "wise" : "kryptapay",
         providerQuoteExpiresAt: expiresAt,
         expiresAt,
@@ -344,6 +358,9 @@ export class WalletConversionsService {
           providerFee: quote.providerFee,
           reepayFee: quote.reepayFee,
           totalDebit: quote.totalDebit,
+          midRate: quote.midRate,
+          spreadBps: quote.spreadBps,
+          conversionSpread: quote.conversionSpread,
           status: WalletConversionStatus.PROCESSING,
           provider: quote.provider,
           merchantReference: quote.merchantReference,
@@ -687,10 +704,17 @@ export class WalletConversionsService {
     reepayFee: Prisma.Decimal;
     totalDebit: Prisma.Decimal;
     rate: Prisma.Decimal;
+    midRate?: Prisma.Decimal | null;
+    spreadBps?: number | null;
+    conversionSpread?: Prisma.Decimal;
     provider: string;
     quotedAt: Date;
     expiresAt: Date;
   }) {
+    const conversionSpread = quote.conversionSpread ?? new Prisma.Decimal(0);
+    const explicitFee = quote.providerFee.add(quote.reepayFee);
+    const totalFee = explicitFee.add(conversionSpread);
+
     return {
       id: quote.id,
       source: {
@@ -703,7 +727,21 @@ export class WalletConversionsService {
       },
       fees: {
         provider: { amount: quote.providerFee.toFixed(), currency: WalletCurrency.XAF },
-        reepay: { amount: quote.reepayFee.toFixed(), currency: WalletCurrency.XAF }
+        reepay: { amount: quote.reepayFee.toFixed(), currency: WalletCurrency.XAF },
+        conversionSpread: {
+          amount: conversionSpread.toFixed(),
+          currency: WalletCurrency.XAF,
+          basisPoints: quote.spreadBps ?? 0,
+          includedInRate: true
+        }
+      },
+      totalExplicitFee: {
+        amount: explicitFee.toFixed(),
+        currency: WalletCurrency.XAF
+      },
+      totalFee: {
+        amount: totalFee.toFixed(),
+        currency: WalletCurrency.XAF
       },
       totalDebit: {
         amount: quote.totalDebit.toFixed(),
@@ -711,6 +749,12 @@ export class WalletConversionsService {
       },
       provider: quote.provider,
       rate: quote.rate.toFixed(),
+      pricing: {
+        midRate: quote.midRate?.toFixed() ?? quote.rate.toFixed(),
+        appliedRate: quote.rate.toFixed(),
+        spreadBps: quote.spreadBps ?? 0,
+        spreadIncludedInSourceAmount: true
+      },
       quotedAt: quote.quotedAt.toISOString(),
       expiresAt: quote.expiresAt.toISOString()
     };

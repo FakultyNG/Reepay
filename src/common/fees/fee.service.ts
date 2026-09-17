@@ -74,6 +74,30 @@ export class FeeService {
     return netSettlementRequired.mul(percent).div(100).ceil();
   }
 
+  calculateBankPayoutProviderFeeDecimal(
+    submittedXafAmount: Prisma.Decimal,
+    providerQuotedFee?: Prisma.Decimal
+  ): Prisma.Decimal {
+    if (submittedXafAmount.isNegative()) {
+      throw new Error("submittedXafAmount must be a non-negative decimal");
+    }
+
+    if (providerQuotedFee !== undefined) {
+      if (providerQuotedFee.isNegative()) {
+        throw new Error("providerQuotedFee must be a non-negative decimal");
+      }
+
+      return providerQuotedFee.ceil();
+    }
+
+    const fallback = this.config.kryptapay;
+    if (!fallback.bankPayoutFeeFallbackEnabled || fallback.bankPayoutFeePercent === 0) {
+      return new Prisma.Decimal(0);
+    }
+
+    return submittedXafAmount.mul(new Prisma.Decimal(fallback.bankPayoutFeePercent)).div(100).ceil();
+  }
+
   calculateCurrencyFeeDecimal(
     transactionAmount: Prisma.Decimal,
     currency: "EUR" | "USDC"

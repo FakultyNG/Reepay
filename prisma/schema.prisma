@@ -246,6 +246,9 @@ model WalletConversionQuote {
   reepayFee              Decimal        @db.Decimal(19, 8)
   totalDebit             Decimal        @db.Decimal(19, 8)
   rate                   Decimal        @db.Decimal(19, 8)
+  midRate                Decimal?       @db.Decimal(19, 8)
+  spreadBps              Int?
+  conversionSpread       Decimal        @default(0) @db.Decimal(19, 8)
   provider               String
   providerQuoteReference String?
   providerQuoteExpiresAt DateTime
@@ -276,6 +279,9 @@ model WalletConversion {
   providerFee           Decimal                @db.Decimal(19, 8)
   reepayFee             Decimal                @db.Decimal(19, 8)
   totalDebit            Decimal                @db.Decimal(19, 8)
+  midRate               Decimal?               @db.Decimal(19, 8)
+  spreadBps             Int?
+  conversionSpread      Decimal                @default(0) @db.Decimal(19, 8)
   status                WalletConversionStatus @default(PENDING)
   provider              String
   providerReference     String?                @unique

@@ -1,0 +1,9 @@
+ALTER TABLE "WalletConversionQuote"
+ADD COLUMN "midRate" DECIMAL(19,8),
+ADD COLUMN "spreadBps" INTEGER,
+ADD COLUMN "conversionSpread" DECIMAL(19,8) NOT NULL DEFAULT 0;
+
+ALTER TABLE "WalletConversion"
+ADD COLUMN "midRate" DECIMAL(19,8),
+ADD COLUMN "spreadBps" INTEGER,
+ADD COLUMN "conversionSpread" DECIMAL(19,8) NOT NULL DEFAULT 0;

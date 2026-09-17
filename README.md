@@ -91,3 +91,11 @@ KryptaPay deposit fees use `KRYPTAPAY_DEPOSIT_FEE_PERCENT` as a temporary fallba
 plus Reepay fee, rounds it up to a whole XAF, and adds it to the checkout amount.
 When KryptaPay exposes a fee value, that provider value takes precedence; disable the fallback by
 setting `KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED=false`.
+
+KryptaPay `BANK_EUR` wallet-funding payouts use `KRYPTAPAY_BANK_PAYOUT_FEE_PERCENT` as a temporary
+XAF fallback when `KRYPTAPAY_BANK_PAYOUT_FEE_FALLBACK_ENABLED=true`. It is calculated from the FX
+quote's XAF source amount and rounded up to whole XAF. It does not apply to USDC conversions or Wise
+outbound payouts.
+
+Conversion quote responses expose `midRate`, `appliedRate`, `spreadBps`, the XAF-equivalent
+`conversionSpread`, and whether that spread is already included in the quoted source amount.

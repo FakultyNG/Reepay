@@ -186,4 +186,31 @@ describe("FeeService", () => {
 
     restore();
   });
+
+  it("rounds the KryptaPay bank payout fallback fee up to whole XAF", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "fixed",
+      KRYPTAPAY_BANK_PAYOUT_FEE_FALLBACK_ENABLED: "true",
+      KRYPTAPAY_BANK_PAYOUT_FEE_PERCENT: "0.3"
+    });
+
+    expect(service.calculateBankPayoutProviderFeeDecimal(new Prisma.Decimal("100001")).toFixed()).toBe("301");
+
+    restore();
+  });
+
+  it("prefers a quoted bank payout fee and supports disabling the fallback", () => {
+    const { service, restore } = buildFeeService({
+      REEPAY_FEE_TYPE: "fixed",
+      KRYPTAPAY_BANK_PAYOUT_FEE_FALLBACK_ENABLED: "false",
+      KRYPTAPAY_BANK_PAYOUT_FEE_PERCENT: "0.3"
+    });
+
+    expect(service.calculateBankPayoutProviderFeeDecimal(new Prisma.Decimal("100001")).toFixed()).toBe("0");
+    expect(
+      service.calculateBankPayoutProviderFeeDecimal(new Prisma.Decimal("100001"), new Prisma.Decimal("275.2")).toFixed()
+    ).toBe("276");
+
+    restore();
+  });
 });
