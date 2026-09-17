@@ -245,6 +245,20 @@ export class WalletConversionsService {
     return this.toConversionResponse(conversion);
   }
 
+  async getCustomerConversion(id: string, customerExternalId: string) {
+    const conversion = await this.prisma.walletConversion.findFirst({
+      where: {
+        id,
+        customer: { externalId: customerExternalId }
+      }
+    });
+    if (!conversion) {
+      throw new NotFoundException("Wallet conversion not found");
+    }
+
+    return this.toConversionResponse(conversion);
+  }
+
   async reconcileProviderConversionStatus(id: string, requestId?: string) {
     const conversion = await this.prisma.walletConversion.findUnique({ where: { id } });
 

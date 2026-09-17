@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Optional, ParseIntPipe, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Optional, Param, ParseIntPipe, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { WalletCurrency } from "@prisma/client";
 import { ApiKeyGuard } from "../auth/api-key.guard";
@@ -76,6 +76,14 @@ export class WalletsController {
     @Headers("idempotency-key") idempotencyKey?: string
   ) {
     return this.conversions!.confirm(body, WalletCurrency.USDC, requestId, idempotencyKey);
+  }
+
+  @Get("/conversions/:id")
+  getWalletConversion(
+    @Param("id") conversionId: string,
+    @Query("customerId") customerId: string
+  ) {
+    return this.conversions!.getCustomerConversion(conversionId, customerId);
   }
 
   @Get("/funding-instructions")

@@ -3,6 +3,7 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiKeyGuard } from "../src/auth";
+import { WalletConversionsService } from "../src/wallets/wallet-conversions.service";
 import { WalletsController } from "../src/wallets/wallets.controller";
 import { WalletsService } from "../src/wallets/wallets.service";
 import type { INestApplication } from "@nestjs/common";
@@ -12,6 +13,9 @@ describe("Wallet routes", () => {
   const wallets = {
     getBalance: vi.fn(),
     getSummary: vi.fn()
+  };
+  const conversions = {
+    getCustomerConversion: vi.fn()
   };
 
   beforeEach(async () => {
@@ -28,10 +32,17 @@ describe("Wallet routes", () => {
         EUR: { amount: "1524.49", currency: "EUR", displayOnly: true }
       }
     });
+    conversions.getCustomerConversion.mockResolvedValue({
+      id: "conversion_123",
+      status: "processing"
+    });
 
     const moduleRef = await Test.createTestingModule({
       controllers: [WalletsController],
-      providers: [{ provide: WalletsService, useValue: wallets }]
+      providers: [
+        { provide: WalletsService, useValue: wallets },
+        { provide: WalletConversionsService, useValue: conversions }
+      ]
     })
       .overrideGuard(ApiKeyGuard)
       .useValue({ canActivate: () => true })
@@ -69,5 +80,18 @@ describe("Wallet routes", () => {
         EUR: { currency: "EUR", displayOnly: true }
       }
     });
+  });
+
+  it("returns only the authenticated customer's wallet conversion status", async () => {
+    const response = await request(app.getHttpServer()).get(
+      "/v1/wallet/conversions/conversion_123?customerId=sanga_user_1"
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ id: "conversion_123", status: "processing" });
+    expect(conversions.getCustomerConversion).toHaveBeenCalledWith(
+      "conversion_123",
+      "sanga_user_1"
+    );
   });
 });
