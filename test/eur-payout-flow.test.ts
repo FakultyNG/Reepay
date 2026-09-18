@@ -28,6 +28,25 @@ function sangapayWebhooks() {
 }
 
 describe("EUR payout flow", () => {
+  it.each(["SOLANA", "BASE"])("rejects unsupported KryptaPay USDC network %s", async (network) => {
+    const service = new PayoutsService(
+      {} as PrismaService,
+      {} as KryptaPayClient,
+      {} as FeeService,
+      config(),
+      sangapayWebhooks()
+    );
+
+    await expect(
+      service.createUsdcAddressPayoutQuote({
+        customerId: "sanga_user_1",
+        amount: "10",
+        network: network as "POLYGON",
+        address: "0x1234567890123456789012345678901234567890"
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it("charges only the Reepay fee for a USDC address payout quote", async () => {
     const prisma = {
       payoutQuote: {

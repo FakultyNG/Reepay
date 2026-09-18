@@ -1,6 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, Matches, MaxLength } from "class-validator";
+import { IsIn, IsString, Matches, MaxLength, MinLength } from "class-validator";
 import type { PaymentNetwork } from "../../providers/types";
+
+export const USDC_PAYOUT_NETWORKS = ["ETH", "POLYGON", "TRON"] as const satisfies readonly PaymentNetwork[];
 
 export class CreateUsdcAddressPayoutQuoteDto {
   @ApiProperty()
@@ -12,12 +14,14 @@ export class CreateUsdcAddressPayoutQuoteDto {
   @Matches(/^\d+(\.\d{1,8})?$/)
   amount!: string;
 
-  @ApiProperty({ example: "POLYGON" })
+  @ApiProperty({ example: "POLYGON", enum: USDC_PAYOUT_NETWORKS })
   @IsString()
-  network!: PaymentNetwork;
+  @IsIn(USDC_PAYOUT_NETWORKS)
+  network!: (typeof USDC_PAYOUT_NETWORKS)[number];
 
-  @ApiProperty()
+  @ApiProperty({ minLength: 20, maxLength: 80 })
   @IsString()
-  @MaxLength(180)
+  @MinLength(20)
+  @MaxLength(80)
   address!: string;
 }

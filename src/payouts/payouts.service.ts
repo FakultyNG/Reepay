@@ -11,7 +11,10 @@ import { SangaPayWebhookDispatcher } from "../webhooks/sangapay";
 import type { ConfirmEurPayoutDto } from "./dto/confirm-eur-payout.dto";
 import type { CreateEurPayoutQuoteDto } from "./dto/create-eur-payout-quote.dto";
 import type { CreateEurWiseTagPayoutQuoteDto } from "./dto/create-eur-wisetag-payout-quote.dto";
-import type { CreateUsdcAddressPayoutQuoteDto } from "./dto/create-usdc-address-payout-quote.dto";
+import {
+  USDC_PAYOUT_NETWORKS,
+  type CreateUsdcAddressPayoutQuoteDto
+} from "./dto/create-usdc-address-payout-quote.dto";
 
 const sepaIbanPattern = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/;
 
@@ -162,6 +165,12 @@ export class PayoutsService {
   }
 
   async createUsdcAddressPayoutQuote(dto: CreateUsdcAddressPayoutQuoteDto, idempotencyKey?: string) {
+    if (!(USDC_PAYOUT_NETWORKS as readonly string[]).includes(dto.network)) {
+      throw new BadRequestException(
+        `Unsupported USDC payout network. Supported networks: ${USDC_PAYOUT_NETWORKS.join(", ")}`
+      );
+    }
+
     return this.createWalletPayoutQuote({
       customerId: dto.customerId,
       amount: dto.amount,

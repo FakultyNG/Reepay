@@ -1,4 +1,4 @@
-import { VersioningType } from "@nestjs/common";
+import { ValidationPipe, VersioningType } from "@nestjs/common";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { WalletCurrency } from "@prisma/client";
@@ -39,6 +39,7 @@ describe("Multi-currency payout routes", () => {
 
     app = moduleRef.createNestApplication();
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
   });
 
@@ -91,10 +92,11 @@ describe("Multi-currency payout routes", () => {
       .expect(201);
     await request(app.getHttpServer())
       .post("/v1/payouts/usdc/address/quote")
-      .send({ customerId: "cust_123", amount: "25", network: "POLYGON", address: "0xabc" })
+      .send({ customerId: "cust_123", amount: "25", network: "POLYGON", address: "0x1234567890123456789012345678901234567890" })
       .expect(201);
 
     expect(payouts.createEurWiseTagPayoutQuote).toHaveBeenCalled();
     expect(payouts.createUsdcAddressPayoutQuote).toHaveBeenCalled();
   });
+
 });
