@@ -149,14 +149,15 @@ describe("FeeService", () => {
     restore();
   });
 
-  it("calculates and rounds the fallback KryptaPay deposit fee to whole XAF", () => {
+  it("grosses up the fallback KryptaPay deposit fee to preserve the expected settlement", () => {
     const { service, restore } = buildFeeService({
       REEPAY_FEE_TYPE: "fixed",
       KRYPTAPAY_DEPOSIT_FEE_FALLBACK_ENABLED: "true",
       KRYPTAPAY_DEPOSIT_FEE_PERCENT: "2.5"
     });
 
-    expect(service.calculateDepositProviderFeeDecimal(new Prisma.Decimal("352")).toFixed()).toBe("9");
+    expect(service.calculateDepositProviderFeeDecimal(new Prisma.Decimal("352")).toFixed()).toBe("10");
+    expect(service.calculateDepositProviderFeeDecimal(new Prisma.Decimal("6801")).toFixed()).toBe("175");
 
     restore();
   });

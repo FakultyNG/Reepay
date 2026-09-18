@@ -70,8 +70,9 @@ export class FeeService {
       return new Prisma.Decimal(0);
     }
 
-    const percent = new Prisma.Decimal(fallback.depositFeePercent);
-    return netSettlementRequired.mul(percent).div(100).ceil();
+    const rate = new Prisma.Decimal(fallback.depositFeePercent).div(100);
+    const grossAmount = netSettlementRequired.div(new Prisma.Decimal(1).sub(rate)).ceil();
+    return grossAmount.sub(netSettlementRequired);
   }
 
   calculateBankPayoutProviderFeeDecimal(
